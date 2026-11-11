@@ -1,0 +1,1032 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+---
+title: "Projet de Bio Stats"
+author: "DIANE et Patrice"
+format:
+  pdf: 
+    toc: true 
+    toc-depth: 3 
+    toc-title: "TABLE DE MATIÈRES" 
+    lof: true 
+    lot: true 
+    code-fold: true 
+    code-tools: 
+      toggle: true 
+      source: false
+---
+
+# Introduction
+
+Aujourd’hui, de plus en plus de fossés se creusent entre les pays développés et les pays en développement en termes de richesse. Les pays riches continuent de s’enrichir, tandis que les pays les plus pauvres demeurent dans la pauvreté. Cette situation peut s’expliquer par des politiques de développement inefficaces, un manque de volonté politique dans certains pays, ou encore par des rapports de force internationaux qui maintiennent certains États dans la précarité, à travers des pratiques de concurrence déloyale, des embargos, des conflits armés et une instabilité politique persistante.
+
+Face à ces inégalités durables, plusieurs questions se posent : comment aider les pays les plus vulnérables et comment réduire ces écarts de richesse ? C’est donc dans cette perspective que nous nous poserons la question suivante : quels sont les principaux facteurs expliquant les disparités de développement entre les pays, et comment les données socio-économiques et sanitaires permettent-elles de les identifier ?\
+Dans un premier temps, nous présenterons la base de données ainsi que les indicateurs utilisés, tels que le PIB, la mortalité infantile, l’espérance de vie, les dépenses dans la santé etc… Dans un second temps, nous expliciterons les méthodes de traitement des données, notamment le nettoyage des données, l’analyse descriptive réalisée et, enfin, les méthodes de remplacement des valeurs manquantes.
+
+L’objectif de cette étude est d’identifier les leviers prioritaires d’investissement susceptibles de favoriser le développement des pays les plus défavorisés. Dans cette perspective analytique, et en se plaçant dans le rôle d’un futur data analyst, nous mènerons cette analyse à partir d’une base de données qui reste néanmoins loin d’être exhaustive. En effet, la comparaison entre pays nécessite bien plus qu’un nombre limité de variables. Toutefois, nous ferons l’hypothèse que cette base de données est suffisamment représentative et qu’une interprétation rigoureuse des données permettra de répondre de manière pertinente à la problématique posée.
+
+## Présenter les données
+
+Notre base de données provient de Kaggle et contient des indicateurs socio-économiques et de santé pour plusieurs pays. Elle comprend 10 colonnes et 167 observations, chaque observation correspondant à un pays. Les variables décrivent différents aspects du niveau de développement et de la situation géographique des pays. À première vue, cette base de données sur Kaggle avait été principalement conçue pour identifier les pays nécessitant une aide urgente. Cependant, notre problématique est différente : nous nous intéressons aux sources d’inégalités des ressources. La problématique originale est bien détaillée sur Kaggle, et afin d’éviter de simplement reproduire ou nous inspirer du travail des auteurs, il nous a semblé nécessaire d’aller au-delà de cette exploitation initiale. Pour approfondir l’analyse et apporter une réelle valeur ajoutée à notre travail, nous avons donc décidé d’enrichir la base de données. Dans cette optique, nous avons créé trois nouvelles variables : Niveau de développement , Zone géographique (qualitative) et la Balance commerciale (quantitative), Nous présentons à présent la description détaillée des variables.
+
+# Présentation de la base de données
+
+## Source des données
+
+### Variables qualitatives
+
+#### Country (Pays)
+
+La variable pays représente le nom des États. Notre base de données couvre environ 85 % des pays du monde, soit 167 sur 197. Cette variable sert d’index principal dans l’étude.
+
+#### Region_geographique (Région géographique)
+
+Cette variable, ajoutée à notre base de données par nous-même, regroupe les pays en fonction de leur situation géographique, en s’appuyant sur plusieurs sources fiables (Wikipédia, ONU, CIA World Factbook, EMIW, etc.). Les zones retenues sont : Afrique, Amérique, Asie, Europe, Océanie.
+
+#### Niveau_de_développement
+
+La variable Niveau_de_développement est une variable que nous avons créée afin d’adapter la base de données à notre problématique. Elle permet d’analyser les différences entre pays selon leur niveau de développement et constitue un élément central de notre étude. Les pays sont classés en quatre catégories principales : développé, en développement, émergent et sous-développé. Cette classification s’appuie sur plusieurs sources fiables, notamment le FMI, la Banque mondiale, l’UNCTAD et des analyses économiques spécialisées (BNP Paribas), afin de refléter à la fois les critères économiques et les indicateurs de développement. Elle offre ainsi un cadre cohérent pour comparer les pays et évaluer leur position dans le contexte mondial.
+
+### Variables quantitatives
+
+#### Child_mort (Mortalité infantile)
+
+Cette variable mesure la mortalité infantile (le nombre d’enfants de moins de 5 ans décédés pour 1 000 naissances vivantes). En 2021, environ 5 millions d’enfants sont morts avant l’âge de 5 ans, et 1,9 million sont nés morts (DHS Program, 2015 ; UNICEF France, s.d.). Cet indicateur est essentiel pour évaluer le niveau de développement d’un pays, car il reflète la qualité des services de santé, de la nutrition et des conditions de vie. Il constitue également une composante de l’Indice de Développement Humain (IDH).
+
+#### Exports (exportation)
+
+La variable Exports mesure les exportations de biens et services par habitant, exprimées en pourcentage du PIB par habitant. Elle reflète la capacité d’un pays à vendre des biens et services à l’étranger (Douane Française, s.d.; CCI Paris IDF, s.d.).
+
+#### Health (Dépenses de santé) :
+
+La variable Health mesure les dépenses totales de santé par habitant, exprimées en pourcentage du PIB. Elle inclut la consommation de biens et services médicaux, tels que les soins curatifs, la réadaptation, la prévention et les services de santé publique. Ces dépenses sont financées par des régimes publics obligatoires et/ou des assurances privées (OCDE, s.d.; IRDES, s.d.).
+
+#### Imports (Importations)
+
+La variable Imports mesure les importations de biens et services par habitant, exprimées en pourcentage du PIB. Elle reflète l’entrée de biens et services achetés à l’étranger, ce qui permet aux pays d’accéder à des matières premières, des technologies et des savoir-faire, tout en générant des flux financiers (SumUp, s.d.; Eurofiscalis, s.d.).
+
+#### Income (Revenu)
+
+La variable Income mesure le revenu net par personne, reflétant le bien-être économique d’une population. Un revenu élevé favorise l’accès à l’alimentation, à l’éducation, aux soins de santé et au logement, et constitue un indicateur clé de la qualité de vie (AskFilo, s.d.).
+
+#### Inflation
+
+La variable Inflation mesure la hausse générale et durable des prix dans un pays, entraînant une perte du pouvoir d’achat. Lorsque les prix augmentent, une même somme d’argent permet d’acheter moins de biens et services (Wikipédia, s.d.). Bien que le lien avec le développement soit moins direct que pour d’autres indicateurs économiques, une inflation stable et faible est généralement caractéristique des pays développés, reflétant la stabilité économique et la capacité des autorités à réguler les marchés.
+
+#### Life_expec (Espérance de vie)
+
+La variable Life_expec mesure le nombre moyen d’années qu’un nouveau-né pourrait espérer vivre si les tendances actuelles en matière de mortalité restaient inchangées (Wikipédia, s.d.). Cet indicateur est largement utilisé pour évaluer le développement humain, car il reflète les conditions sanitaires, l’accès aux soins de santé, la nutrition et le niveau de vie.
+
+#### Total_fer (Fécondité totale)
+
+Cette variable mesure le nombre moyen d’enfants qu’une femme pourrait avoir si les taux de fécondité par âge restaient constants (Eurostat, s.d.). Cet indicateur est un élément clé de l’analyse démographique, permettant d’évaluer la reproduction et la croissance de la population.
+
+#### GDPp (PIB par habitant):
+
+La variable GDPp mesure le produit intérieur brut par habitant, calculé en divisant le PIB total d’un pays par sa population totale (FERDI, s.d.). Cet indicateur permet d’évaluer la richesse moyenne produite par habitant et sert à comparer le niveau économique entre pays.
+
+#### Balance commercial
+
+Cette variable a été crée par nous-même, elle mesure la différence entre la valeur des biens et services exportés et celle des biens et services importés par un pays sur une période donnée (Eurostat, s.d.; AvaTrade, s.d.). Elle indique si un pays vend davantage de produits à l’étranger qu’il n’en achète, reflétant ainsi sa capacité à générer des revenus grâce au commerce international.
+
+# Traitement initial et mise en forme des données
+
+```{r}
+##  Packages utilisés
+
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(readr)
+library(naniar)
+library(gridExtra)
+library(writexl)
+library(corrplot)
+library(missMDA)
+
+
+```
+
+Il s'agit ici de tous les packages qu'on a utilisé tout au longde ce projet
+
+```{r}
+# # Import de la base de l'ancienne donnée
+library(readxl)
+bdd_projet <- read_excel("C:/Users/patri/Desktop/ECAP/M1/cours/projet_bio_stat/bdd_projet.xlsx")
+```
+
+```{r}
+# ### conversion de types
+bdd_projet[c(2,3)]=lapply(bdd_projet[,c(2,3)],as.factor)
+
+```
+
+```{r}
+DIANE_PATRICE <- bdd_projet
+### Changement de nom des variables
+DIANE_PATRICE <- DIANE_PATRICE |> 
+  rename(
+    Mortalité_infantile = child_mort,
+    Exportation = exports,
+    Dépenses_santé = health,
+    Importation = imports,
+    Revenu = income,
+    Inflation = inflation,
+    Espérance_vie = life_expec,
+    Fécondité_totale = total_fer,
+    PIB_par_habitant = gdpp
+  )
+```
+
+## Introduction des valeurs manquantes dans la base de données
+
+```{r}
+# 
+# # reproductibilité
+set.seed(92) 
+# 
+# # Variables et nombre de NA à introduire
+vars_prend_na <- c("Région_géographique","Mortalité_infantile", "Exportation", "Dépenses_santé","Importation", "Revenu", "Inflation", "Espérance_vie", "Fécondité_totale", "PIB_par_habitant", "Balance_commerciale")
+# 
+nb_na <- c(10, 6, 11, 9, 7, 10, 15, 14, 8, 13, 12)
+# 
+# # Boucle
+for (i in seq_along(vars_prend_na)) {
+indices_na <- sample(seq_len(nrow(bdd_projet)), size = nb_na[i], replace = FALSE)
+bdd_projet[indices_na, vars_prend_na[i]] <- NA
+}
+# 
+# 
+# # Sauvegarder en Excel
+#writexl::write_xlsx(bdd_projet, "C:/Users/patri/Desktop/icicicicic/ici_nouveau/DIANE.xlsx")
+# 
+# # Charger depuis Excel
+# library(readxl)
+#DIANE_PATRICE <- read_excel("C:/Users/patri/Desktop/icicicicic/ici_nouveau/DIANE.xlsx")
+
+```
+
+# Analyse exploratoire des données
+
+## Analyse descriptive univariée
+
+```{r}
+### Vérification de la structure des données
+
+str(DIANE_PATRICE) 
+dim(DIANE_PATRICE)
+summary(DIANE_PATRICE)
+
+# conversion de Région_géographique en factor
+DIANE_PATRICE[c(2,3)]=lapply(DIANE_PATRICE[,c(2,3)],as.factor)
+
+
+
+```
+
+Avant de procéder à l’analyse des données et au traitement des valeurs manquantes, un travail de préparation a été réalisé afin de rendre la base exploitable sous R. Les données ont été importées depuis un fichier excel.
+
+Une première vérification de la structure des données a été effectuée afin d’identifier le type des variables et la dimension de la base. Certaines variables ont été converties dans un format approprié (variables qualitatives en facteurs et variables quantitatives en numériques).
+
+```{r}
+#| fig-cap: "Répartition en diagramme en barre selon le région géographique"
+plot(DIANE_PATRICE)
+
+```
+
+NOus avons fait avec plot() la visualisation des relations entre toutes les paires de variables d'un seul coup d'œil.
+
+```{r}
+### vecteur couleur
+
+vecteur_couleur <-c(
+  "Développé" ="darkturquoise",
+  "Émergent" = "darkorange",
+  "En développement"="darkviolet",
+  "Sous-développé"="darkgray",
+  "Afrique"="lightblue",
+  "Amérique"="lightpink",
+  "Asie"="darkkhaki",
+  "Europe"="darkgoldenrod",
+  "Océanie"="brown")
+```
+
+## Qualitative
+
+```{r}
+# Répartition des pays selon le niveau de développement
+
+DIANE_PATRICE |> 
+  count(Niveau_développement) |>
+  knitr::kable(
+    caption = "Répartition des pays selon le niveau de développement")
+
+```
+
+Dans notre base de donnée nous avons 71 pays en développement contre 27 pays émergents, 30 pays développé contre 39 pays sous-développé.
+
+```{r}
+# Répartition des pays selon la région géographique
+
+DIANE_PATRICE |> 
+  count( Région_géographique) |>
+  knitr::kable(
+    caption = "Répartition des pays selon la région géographique")
+
+
+```
+
+Présence de 10 valeurs manquantes. Très faibles représentation des pays de l’océanie.
+
+```{r}
+# Répartition des pays selon le niveau de développement et la région géographique
+DIANE_PATRICE |> 
+  count(Niveau_développement, Région_géographique) |>
+  knitr::kable(
+    caption = "Répartition des pays selon le niveau de développement et la région géographique"
+  )
+```
+
+Il s'agit d'un tableau de contingence, qui met en évidence les combinaisons possibles des pays en fonction de leur Niveau de développement et leur région géographique. Pas de valeurs manquantes dans la distribution de la variable Niveau_développement, mais il y en 10 dans la variable Région_géographique.
+
+# Première Impution
+
+## Traitement des NA pour la variable Région_géographique
+
+```{r}
+#Afficher les lignes où "Région_géographique" est manquante
+indices_région <- which(is.na(DIANE_PATRICE$Région_géographique))
+
+# le nom des pays correspondants à ces lignes 
+DIANE_PATRICE$Pays[indices_région]
+
+# connaissant le continent, un Vecteur a été créé
+continent_manquant <- c("Afrique", "Europe", "Europe", "Asie", "Europe",
+           "Afrique", "Océanie", "Amérique", "Europe", "Afrique")
+
+# Remplacer les continent par pays
+DIANE_PATRICE$Région_géographique[indices_région] <- continent_manquant
+
+# Vérification
+summary(DIANE_PATRICE$Région_géographique)
+
+# verication de toute la base de donnée
+summary(DIANE_PATRICE)
+```
+
+Nous avons remplacé les valeurs manquantes de la variable région_géographique par une méthode d’imputation simple. Celle-ci consiste à identifier la région correspondante à chaque pays à partir des continents déjà connus. Pour ce faire, nous nous sommes appuyés sur des recherches effectuées sur Internet, en mobilisant différentes sources fiables. Ainsi, les données manquantes de cette variable ont pu être complétées.
+
+```{r}
+#| fig-cap: "Répartition en diagramme circulaire selon la Région géographique"
+
+DIANE_PATRICE |>
+  count(Région_géographique, name = "effectif") |>
+  mutate(
+    pourcentage = effectif / sum(effectif) * 100,
+    label = paste0(round(pourcentage, 1), " %")
+  ) |>
+  ggplot(aes(x = "", y = effectif, fill = Région_géographique)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = label),
+    position = position_stack(vjust = 0.5),
+    size = 4
+  ) +
+  scale_fill_manual(values = vecteur_couleur) +
+  theme_void()
+```
+
+Chaque portion du cercle correspond à une région géographique, et la taille de la portion indique la part (en pourcentage) de cette région dans l’ensemble des données.
+
+La distribution montre que les données sont principalement concentrées en Afrique, en Asie et en Europe, qui totalisent ensemble plus de 78 % des observations. À l’inverse, l’Océanie est faiblement représentée, ce qui peut s’expliquer par le nombre limité de pays dans cette région ou par la structure du jeu de données.
+
+```{r}
+#| fig-cap: "Répartition en diagramme circulaire selon le niveau de développement"
+
+DIANE_PATRICE |>
+  count(Niveau_développement) |>
+  mutate(
+    pourcentage = n / sum(n) * 100,
+    label = paste0(round(pourcentage, 1), " %")
+  ) |>
+  ggplot(aes(x = "", y = n, fill = Niveau_développement)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = label),
+    position = position_stack(vjust = 0.5),
+    size = 4
+  ) +
+    scale_fill_manual(values = vecteur_couleur) +
+  theme_void()
+```
+
+Ce graphique représente la répartition des pays selon leur niveau de développement. Les pourcentages indiquent la proportion de pays dans chaque catégorie. La majorité des pays dans ce graphique (42,5 %) sont encore en développement, tandis qu’une minorité seulement (18 %) sont développés. Cela montre un déséquilibre global dans le niveau de développement à travers le monde.
+
+```{r}
+#| fig-cap: "Répartition en diagramme en barre selon le niveau de développement"
+
+DIANE_PATRICE |> 
+  ggplot() +
+  aes(x = Niveau_développement, fill = Niveau_développement) + 
+  geom_bar() +
+  scale_fill_manual(values = vecteur_couleur) + 
+  theme_classic()
+```
+
+La majorité des pays sont encore en développement, ce qui confirme ce qu’on voyait dans le camembert.
+
+```{r}
+#| fig-cap: "Répartition en diagramme en barre selon le région géographique"
+DIANE_PATRICE |> 
+  ggplot() +
+  aes(x = Région_géographique, fill = Région_géographique) + 
+  geom_bar() +
+  scale_fill_manual(values = vecteur_couleur) + 
+  theme_classic()
+```
+
+Ce graphique montre la distribution des données selon les régions géographiques, avec l’Afrique, l’Asie et l’Europe en tête, et l’Océanie.
+
+### Variables quantitatives
+
+```{r}
+# Visualisation des valeurs manquantes
+#gg_miss_upset(DIANE_PATRICE, nset=12)
+miss_var_summary(DIANE_PATRICE)
+```
+
+# Deuxième méthode Imputation
+
+```{r}
+# Code pour affecter les valeurs manquantes des importation , exportation et balance_commerciale
+
+DIANE_complete <- DIANE_PATRICE |> 
+  mutate(
+    # Imputation de Balance_commerciale si elle est NA
+    Balance_commerciale = if_else(
+      is.na(Balance_commerciale) & !is.na(Exportation) & !is.na(Importation),
+      Exportation - Importation,
+      Balance_commerciale
+    ),
+    # Imputation d'Importation si elle est NA
+    Importation = if_else(
+      is.na(Importation) & !is.na(Exportation) & !is.na(Balance_commerciale),
+      Exportation - Balance_commerciale,
+      Importation
+    ),
+    # Imputation d'Exportation si elle est NA
+    Exportation = if_else(
+      is.na(Exportation) & !is.na(Balance_commerciale) & !is.na(Importation),
+      Balance_commerciale + Importation,
+      Exportation
+    )
+  )
+
+```
+
+Dans un premier temps, l’analyse descriptive et l’exploration graphique ont mis en évidence la présence de valeurs manquantes au niveau des variables exportations, importations et balance commerciale. Or, ces trois variables sont liées par une relation comptable simple : la balance commerciale correspond à la différence entre les exportations et les importations. Cette relation a constitué la base méthodologique de notre stratégie de traitement des valeurs manquantes.
+
+Lorsque une seule variable était manquante parmi les trois, et que les deux autres étaient disponibles, nous avons imputé la valeur manquante en utilisant directement cette relation comptable. Ainsi, la balance commerciale a été recalculée comme la différence entre les exportations et les importations, les importations ont été obtenues comme la différence entre les exportations et la balance commerciale, et les exportations comme la somme de la balance commerciale et des importations. Cette approche permet de conserver une cohérence économique entre les variables et repose sur une identité comptable vérifiée.
+
+```{r}
+# Verification
+miss_var_summary(DIANE_complete, nset= 10)
+```
+
+Nous remarquons bien que les NA des importations sont désormais égaux à 0 et les celles des exportations et balance sont égaux à 1. Nous allons donc resoudre ce probmleme en les imputant par la moyenne.
+
+# Troisième Imputations
+
+```{r}
+
+moyenne_dev <- DIANE_complete |>
+  filter(Niveau_développement == "En développement") |>
+  pull(Exportation) |>
+  mean(na.rm = TRUE) |>
+  round()
+
+moyenne_dev
+#Affiche les lignes où "Exportation" est manquante
+indices_export <- which(is.na(DIANE_complete$Exportation))
+
+# le nom des pays correspondants à ces lignes 
+DIANE_complete$Exportation[indices_export]  = moyenne_dev
+
+# Les verifications
+DIANE_complete$Exportation[indices_export] 
+
+#gg_miss_upset(DIANE_complete)
+
+miss_var_summary(DIANE_complete) |> view()
+
+summary(DIANE_complete)
+
+```
+
+```{r}
+# Imputation de la valeur dans la balance commerciale du capvert
+DIANE_complete$Balance_commerciale[34] = DIANE_complete$Exportation[34] - DIANE_complete$Importation[34]
+
+# Verification 
+miss_var_summary(DIANE_complete)
+
+```
+
+Nous avons réussi a imputer ka valeur de la balance commerciale du pays Cap-vert en se basant sur le calcul des des imports et exports. lA verification nous le montre bien dans un tableau.
+
+```{r}
+### Vecteur comportant nos variables quantitatives
+vars_quanti <- c("Mortalité_infantile","Exportation","Dépenses_santé","Importation","Revenu", "Inflation","Espérance_vie","Fécondité_totale","PIB_par_habitant","Balance_commerciale" )
+```
+
+### Tableau des Statistiques des données quantitatives
+
+```{r}
+stats_long <- DIANE_complete |>
+  select(all_of(vars_quanti)) |>
+  pivot_longer(cols = everything(),
+               names_to = "Variable",
+               values_to = "Valeur") |>
+  group_by(Variable) |>
+  summarise(
+    N = sum(!is.na(Valeur)),
+    Moyenne = mean(Valeur, na.rm = TRUE),
+    Médiane = median(Valeur, na.rm = TRUE),
+    Écart_type = sd(Valeur, na.rm = TRUE),
+    Min = min(Valeur, na.rm = TRUE),
+    Max = max(Valeur, na.rm = TRUE)
+  ) 
+stats_long |>   knitr::kable(
+    caption = "Statistique des varuiables quantiatative") 
+
+```
+
+### Histogramme des variables quantatives
+
+```{r}
+#| fig-cap: "Répartition en histogramme des variables quantitatives selon la région géographique"
+
+# Crée un vecteur pour la variable qualitative Région_géographique, afin de l’utiliser dans la boucle et de l’afficher avec toutes les variables quantitatives.
+var_region <- "Région_géographique"
+
+for (v in vars_quanti) {
+  p <- ggplot(DIANE_complete, aes(x = .data[[v]], fill = .data[[var_region]])) +
+    geom_histogram(bins = 20) +
+    scale_fill_manual(values = vecteur_couleur) +
+    theme_classic() +
+    ggtitle(paste("Distribution de", v, "par", var_region))
+  
+  print(p)
+}
+```
+
+## Histogramme quanti et Niveau_développement
+
+```{r}
+# Crée un vecteur pour la variable qualitative Niveau_développement, afin de l’utiliser dans la boucle et de l’afficher avec toutes les variables quantitatives.
+var_Niveau <- "Niveau_développement"
+
+#| fig-cap: "Répartition en Histogramme des variables qua,titatives selon le région géographique"
+
+for (v in vars_quanti) {
+  p <- ggplot(DIANE_complete, aes_string(x = v, fill = var_Niveau)) +
+    geom_histogram(bins = 20) +
+    scale_fill_manual(values = vecteur_couleur) +
+    theme_classic() +
+    ggtitle(paste("Distribution de", v, "par", var_Niveau))
+  
+  print(p)
+}
+```
+
+## Boxplot
+
+### Boxplot des quanti avec le niveau de developpment
+
+```{r}
+DIANE_complete |> 
+  pivot_longer(
+    where(is.numeric),
+    names_to = "variable",
+    values_to = "mesure"
+    ) |>
+  ggplot() +
+  aes(y = mesure , fill=  variable) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_classic()
+```
+
+L’analyse des boxplots montre que seule la distribution de la balance commerciale apparaît globalement symétrique. En revanche, les autres variables présentent des distributions asymétriques. Les variables économiques telles que le revenu et le PIB par habitant sont caractérisées par une asymétrie à droite, traduisant l’influence de quelques pays émergents ou à revenu élevé qui étirent la distribution. À l’inverse, l’espérance de vie présente une asymétrie à gauche, indiquant la présence de pays à espérance de vie plus faible qui tirent la distribution vers le bas. On observe également la présence de quelques valeurs extrêmes, reflétant l’hétérogénéité des situations économiques et sociales entre les pays.
+
+```{r}
+library(EnvStats)  # Assure-toi que le package est chargé
+
+for(i in vars_quanti){
+  print(paste("Rosner test pour :", i))
+  print(rosnerTest(DIANE_complete[[i]], k = 10, alpha = 0.05))
+}
+
+```
+
+Après l’interprétation de notre boxplot, nous avons constaté que certaines valeurs se démarquaient nettement des autres. Nous avons alors envisagé qu’elles pouvaient être atypiques ou aberrantes. Pour vérifier cette hypothèse, nous avons appliqué le Rosner test, qui permet d’identifier de manière précise ces valeurs atypiques dans nos variables quantitatives.
+
+Les résultats du test ont montré la présence de valeurs atypique pour plusieurs variables. Pour la mortalité infantile, nous avons identifié une seule valeur aberrante. Pour les exportations, trois valeurs étaient considérées comme atypiques, tandis que la dépense en santé présentait une seule valeur aberrante. Les importations avaient deux valeurs atypiques, et le revenu en comptait cinq. Concernant l’inflation, trois valeurs étaient atypiques, l’espérance de vie avait une valeur aberrante, tandis que la fécondité n’en présentait aucune. Enfin, le PIB affichait quatre valeurs atypiques et la balance commerciale une seule.
+
+Bien que ces valeurs atypiques soient connues, nous avons choisi de ne pas les supprimer pour nos analyses statistiques. En effet, notre base de données porte sur différents pays, et supprimer une observation correspondant à un pays reviendrait à supprimer un pays entier, ce qui pourrait avoir un impact négatif sur nos résultats et nos conclusions. Nous avons donc décidé de conserver ces valeurs afin de maintenir la représentativité et l’intégrité de notre base de données.
+
+### Boxplot des quanti avec la Région géographique
+
+```{r}
+#| fig-cap: "Boite en moustache des quanti avec la Région géographique"
+
+for (v in vars_quanti) {
+  p <- ggplot(DIANE_complete, aes_string(x = var_region, y = v, fill = var_region)) +
+    geom_boxplot(na.rm = TRUE) +
+    scale_fill_manual(values = vecteur_couleur) +
+    theme_classic() +
+    xlab(var_region) +
+    ylab(v) +
+    ggtitle(paste("Boxplot de", v, "par", var_region))
+  
+  print(p)
+}
+```
+
+# Analyse descriptive bivariée
+
+### Quali - Quali
+
+```{r}
+DIANE_complete |>
+count(Niveau_développement,  Région_géographique) |>
+ggplot() +
+aes(x = Niveau_développement, y = Région_géographique, fill = n) +
+geom_tile() +
+theme_bw()
+```
+
+Cete graphique présente une heatmap (carte de chaleur) . Elle croise deux variables qualitatives : la Région géographique (en ordonnées) et le Niveau de développement (en abscisses).Voici l'analyse de ce que ce graphique nous apprend sur vos données : 1. Interprétation visuelle (L'intensité des couleurs)La légende à droite indique que plus le bleu est clair, plus l'effectif (n) est élevé. Plus le bleu est sombre, plus le nombre de pays dans cette catégorie est faible. Les zones blanches indiquent une absence totale de données (effectif de zéro). Les pôles de concentration : Afrique / Sous-développé : C'est la zone la plus claire du graphique, indiquant que la majorité des pays classés comme "Sous-développés" se trouvent en Afrique.Europe / Développé : On observe un bleu très clair ici aussi, montrant une forte concentration de pays développés en Europe.Les zones de transition :L'Asie et l'Amérique semblent avoir une répartition plus diffuse, touchant principalement les catégories "Émergent" et "En développement".L'Océanie est très peu représentée (couleurs sombres partout), ce qui est logique vu le faible nombre de pays dans cette région.
+
+```{r}
+DIANE_complete |>
+ggplot(aes(x = Niveau_développement, fill = Région_géographique)) +
+geom_bar(position = "dodge") +   # barres côte à côte
+scale_fill_manual(values = vecteur_couleur) +
+
+theme_bw()
+```
+
+Il s'agit ici de la distribution du niveau de développement dans laquelle nous avons mis en évidence la région géographique .
+
+```{r}
+DIANE_complete |>
+ggplot(aes(x = Région_géographique, fill = Niveau_développement)) +
+geom_bar(position = "dodge") +   # barres côte à côte
+scale_fill_manual(values = vecteur_couleur) +
+theme_bw()
+```
+
+Nous restons dans la même logique , pour cette fois, nous mettons en évidence le niveau de développement à partir de la distribution de la région géographique.
+
+### Quanti - Quali
+
+```{r}
+#| fig-cap: "Boite en moustache des quanti avec le Niveau de développement"
+
+for (v in vars_quanti) {
+  p <- ggplot(DIANE_complete, aes_string(x = var_Niveau, y = v, fill = var_Niveau)) +
+    geom_boxplot(na.rm = TRUE) +
+    scale_fill_manual(values = vecteur_couleur) +
+    theme_classic() +
+    xlab(var_Niveau) +
+    ylab(v) +
+    ggtitle(paste("Boxplot de", v, "par", var_Niveau))
+  
+  print(p)
+}
+```
+
+L’analyse des boxplots révèle que la plupart des variables quantitatives présentent des variations importantes selon le niveau de développement des pays. Cette tendance met en évidence les différences économiques et sociales entre pays développés, en développement et sous-développés. En revanche, les importations semblent relativement constantes, ce qui suggère que ce facteur est moins influencé par le niveau de développement.
+
+# Quanti-quanti
+
+## Matrice de correlation
+
+```{r}
+# pearson
+
+# Calculer la matrice de corrélation
+mat_corr <- cor(DIANE_complete[vars_quanti], use = "complete.obs")
+
+# Afficher la matrice
+mat_corr
+```
+
+```{r}
+# pearson
+
+# Calcul de la matrice de corrélation
+mat_corr <- cor(DIANE_complete[vars_quanti], use = "complete.obs")
+
+# Affichage avec couleurs et valeurs
+corrplot(mat_corr, method = "color", type = "lower", 
+         addCoef.col = "black", # affiche les coefficients
+         tl.col = "black", tl.srt = 20, # noms des variables
+         number.cex = 0.6,
+         col = colorRampPalette(c("red","white","blue"))(200))
+```
+
+Dynamiques de santé et indicateurs démographiques Le corrplot permet d'identifier des mécanismes sociaux profonds, notamment à travers ce que l'on peut appeler le "Triangle de la Santé". La corrélation négative extrêmement forte entre la mortalité infantile et l'espérance de vie (-0,89) montre que la survie des enfants reste le levier majeur de la longévité globale d'une population. Parallèlement, la forte corrélation positive entre la fécondité et la mortalité infantile (0,81) illustre un cycle démographique souvent observé dans les zones précaires : un taux de natalité élevé compense souvent une mortalité infantile importante, ces deux facteurs étant généralement alimentés par un accès limité aux soins et à l'éducation.
+
+Corrélations économiques et variables structurelles Sur le plan économique, le graphique met en évidence un "Bloc Économique" où le Revenu et le PIB par habitant sont quasi indissociables (corrélation de 0,88), l'un agissant comme le moteur direct de l'autre. Cette prospérité semble également favoriser l'ouverture commerciale, puisque la balance commerciale est positivement liée au revenu (0,57), suggérant que les pays les plus riches génèrent des flux d'échanges plus massifs ou bénéficient d'excédents plus fréquents. À l'inverse, des variables comme l'inflation ou les dépenses de santé affichent des teintes très pâles, indiquant qu'elles n'exercent pas d'influence linéaire prévisible sur les autres indicateurs dans ce contexte précis, leur impact étant probablement modulé par d'autres facteurs structurels non mesurés ici.
+
+## Nuage de point
+
+```{r}
+library(gridExtra)
+
+# Après ta boucle, tu as une liste de plots
+plots <- list()
+
+k <- 1
+for (i in seq_along(vars_quanti)) {
+  for (j in seq_along(vars_quanti)) {
+    if (i < j) {
+      xvar <- vars_quanti[i]
+      yvar <- vars_quanti[j]
+      
+      plots[[k]] <- ggplot(DIANE_complete, aes_string(x = xvar, y = yvar)) +
+        geom_point() +
+        geom_smooth(method = "lm", se = FALSE) +
+        theme_classic() 
+        # ggtitle(paste("Relation entre", xvar, "et", yvar))
+      k <- k + 1
+    }
+  }
+}
+
+# Afficher plusieurs graphiques sur une seule page
+grid.arrange(grobs = plots[1:4], nrow=2 ,ncol=2)
+grid.arrange(grobs = plots[5:8], nrow=2 ,ncol=2)
+grid.arrange(grobs = plots[9:12], nrow=2 ,ncol=2)# première page
+grid.arrange(grobs = plots[13:16], nrow=2 ,ncol=2)# première page
+grid.arrange(grobs = plots[17:20], nrow=2 ,ncol=2)
+grid.arrange(grobs = plots[21:24], nrow=2 ,ncol=2)# deuxième page
+grid.arrange(grobs = plots[25:28], nrow=2 ,ncol=2)# deuxième page
+grid.arrange(grobs = plots[29:32], nrow=2 ,ncol=2)# deuxième page
+grid.arrange(grobs = plots[33:36], nrow=2 ,ncol=2)# deuxième page
+grid.arrange(grobs = plots[37:40], nrow=2 ,ncol=2)# deuxième page
+grid.arrange(grobs = plots[41:44], nrow=2 ,ncol=2)# deuxième page
+
+
+```
+
+Dans ces différents graphiques, nous avons obtenu plusieurs sorties représentant des paires de variables, à la fois quantitatives.
+
+Dans notre cas, nous nous sommes particulièrement intéressés à la variable mortalité, car nous pensions qu’elle pouvait être corrélée, positivement ou négativement, avec d’autres variables. Nous nous sommes donc demandé pourquoi ne pas l’utiliser comme variable de référence afin de procéder à une imputation à l’aide des MCO.
+
+C’est dans cette perspective que nous avons décidé de la retenir.
+
+Ce qu’il faut principalement retenir de cette partie, c’est que, globalement, la relation entre la variable mortalité et les autres variables observées sur les graphiques tend à converger vers une relation de régression linéaire.
+
+## Méthode d'imputation par les MCO
+
+```{r}
+base_regression <- DIANE_complete[complete.cases(DIANE_complete), ]
+
+lm(Mortalité_infantile~Revenu + Exportation +Dépenses_santé + Importation + Inflation + Espérance_vie + Fécondité_totale + PIB_par_habitant + Balance_commerciale ,data=base_regression) |> 
+
+summary()
+
+
+library(leaps)
+modele0<-lm(Mortalité_infantile~1,data=base_regression)
+modele<-
+lm(Mortalité_infantile~Revenu + Exportation +Dépenses_santé + Importation + Inflation + Espérance_vie + Fécondité_totale + PIB_par_habitant + Balance_commerciale ,data=base_regression)
+
+#Méthode ascendante
+step(modele0, scope=list(lower=modele0, upper=modele),data=base_regression,
+direction="forward")
+
+
+#méthode descendante
+step(modele, data=base_regression,direction="backward")
+
+#méthode dans les 2 sens
+step(modele0, scope = list(upper=modele),data=base_regression,direction="both")
+```
+
+```{r}
+
+
+DIANE_complete2 <- DIANE_complete
+
+regr_mortalite <- lm(formula = Mortalité_infantile ~ Espérance_vie + Fécondité_totale + 
+    PIB_par_habitant, data = base_regression)
+
+# Calculer les prédictions avec ton modèle
+DIANE_complete2$pred_mortalite <- predict(regr_mortalite, newdata = DIANE_complete2)
+# Remplacer les NA de salaire_min par les prédictions
+DIANE_complete2$Mortalité_infantile <-
+  ifelse(
+    is.na(DIANE_complete2$Mortalité_infantile),
+    DIANE_complete2$pred_mortalite,
+    DIANE_complete2$Mortalité_infantile
+  )
+
+# vérification
+miss_var_summary(DIANE_complete2)
+
+```
+
+Pour la variable mortalité infantile., l’idée est de la régresser sur l’ensemble des autres variables qualitatives de notre étude. Cette approche nous permettra de prédire les valeurs manquantes de la variable de mortalité infantile.
+
+Ensuite, nous utilisons la fonction stepwise, qui permet de ne conserver que les variables expliquant de manière significative la variable mortalité infantile., c’est-à-dire celles ayant un impact statistiquement significatif sur celle-ci.
+
+À partir du modèle sélectionné par la méthode stepwise, nous appliquons la fonction predict. Cette fonction nous permet de remplacer les valeurs manquantes de la variable mortalité par les valeurs prédites.
+
+Grâce à cette méthode, plusieurs valeurs manquantes ont pu être imputées. Toutefois, une valeur n’a pas pu être remplacée. C’est pour cette raison que nous avons recours à une autre méthode d’imputation, à savoir l’imputation par la moyenne, appliquée uniquement à la variable mortalité infantile. qui n’a pas pu être imputée par la méthode des MCO.
+
+## Methode d'imputation par la moyenne
+
+```{r}
+#lignes où "Région_géographique" est manquante
+indices3 <- which(is.na(DIANE_complete2$Mortalité_infantile))
+
+DIANE_complete2$Pays[indices3] 
+DIANE_complete2$Niveau_développement[indices3] 
+
+
+moyenne_Mort <- DIANE_complete2 |>
+  filter(Niveau_développement == "Sous-développé") |>
+  pull(Mortalité_infantile) |>
+  mean(na.rm = TRUE) |>
+  round()
+
+moyenne_Mort
+
+# le nom des pays correspondants à ces lignes 
+
+DIANE_complete2$Mortalité_infantile[indices3]  = moyenne_Mort
+
+#Les Verifications
+DIANE_complete2$Mortalité_infantile[indices3] 
+miss_var_summary(DIANE_complete2)
+
+```
+
+Nous avons donc pu remplacer la valeur manquante restante à l’aide d’une méthode d’imputation par la moyenne. Ainsi, le problème des quelques individus présentant une valeur manquante pour la mortalité infantile a été entièrement résolu.
+
+```{r}
+# Suppression de la colonne pred_mortalite
+DIANE_complete2 <- DIANE_complete2 |>  select(- pred_mortalite) 
+
+# Vérification
+DIANE_complete2
+```
+
+Après la résolution de l’imputation par les MCO des valeurs manquantes de la variable mortalité infantile, notre programme a généré une nouvelle colonne appelée pred_mortalite.
+
+Dans ce contexte, nous avons demandé la suppression de cette nouvelle colonne, afin de conserver la base de données initiale, tout en intégrant la valeur manquante de la mortalité infantile qui a désormais été correctement remplacée.
+
+# Imputation par l'ACP
+
+```{r}
+library(PerformanceAnalytics)
+chart.Correlation(DIANE_complete2[,vars_quanti], histogram=TRUE, pch=19,method = c("spearman"))
+
+```
+
+La matrice de corrélation de Spearman met en évidence une structuration forte autour des variables de développement socio-économique. La mortalité infantile et la fécondité sont fortement et négativement corrélées à l’espérance de vie, au revenu et au PIB par habitant, tandis que ces dernières variables sont positivement liées entre elles. Ces relations traduisent une opposition nette entre pays moins développés et pays plus développés, confirmant l’existence d’une information commune favorable à la réalisation d’une ACP.
+
+En revanche, les variables liées au commerce extérieur et à la stabilité macroéconomique présentent des corrélations plus modérées. Les importations semblent porter une information distincte, susceptible de structurer une dimension secondaire, tandis que les exportations, la balance commerciale, l’inflation et les dépenses de santé contribuent plus faiblement à la structuration des axes principaux, ce qui explique leur rôle secondaire dans l’analyse factorielle.
+
+## Méthode d'imputation par l'ACP
+
+Avant la réalisation de l’analyse en composantes principales (ACP), une analyse de la matrice de corrélation de Spearman a été menée afin d’évaluer les relations entre les variables. Ce choix se justifie par le fait que certaines variables ne respectent pas l’hypothèse de normalité. Les variables présentant de fortes corrélations avec plusieurs autres ont été conservées, car elles contribuent davantage à la structuration de l’information commune. À l’inverse, les variables faiblement corrélées avec l’ensemble des autres, notamment les dépenses de santé et l’inflation, ont été écartées, car elles apportaient peu d’information partagée et risquaient d’affaiblir la qualité de la représentation factorielle. L’ACP a ensuite été réalisée sur le sous-ensemble de variables retenues.
+
+```{r}
+# suppression des valeurs manquante pour preparer l'ACP
+DIANE_sna <- DIANE_complete2 |>
+  drop_na()
+
+```
+
+```{r}
+library(mice)
+library(missMDA)
+library(FactoMineR)
+
+acp_DIANE <- DIANE_sna |>
+  select(-Pays,- Niveau_développement, -Région_géographique, -Inflation, -Dépenses_santé) |>
+  PCA()
+
+```
+
+L'analyse du nuage des variables issu de l’ACP réalisée sur la base sans valeurs manquantes montre que les variables de fécondité, de mortalité infantile, d’espérance de vie, de revenu et de PIB par habitant sont fortement corrélées à la première dimension. Les importations apparaissent principalement associées à la deuxième dimension. En revanche, les variables d’exportations et de balance commerciale présentent une faible corrélation avec les axes factoriels, comme l’indique leur position proche de l’angle de 45°, traduisant une contribution limitée à la structuration des dimensions retenues.
+
+```{r}
+# Affichage des variances des composantes
+round(acp_DIANE$eig,2)
+```
+
+```{r}
+# Graphique des niveaux de dimension
+library(factoextra)
+fviz_screeplot(acp_DIANE, addlabels = TRUE)
+
+```
+
+Nous retiendrons deux dimensions pour notre étude : la première explique 53,7 % de la variance et la deuxième 18,2 %, soit un total cumulé de 71,9 %.
+
+```{r}
+#Remplacement des NA par l'ACP
+
+DIANE_complete3 <- MIPCA(DIANE_complete2 |> select(-Pays,- Niveau_développement, -Région_géographique, -Inflation, -Dépenses_santé), ncp = 2)
+plot.MIPCA(DIANE_complete3)
+
+```
+
+Après imputation des données manquantes et réalisation de l’ACP, l’analyse du nuage des variables met en évidence des liaisons marquées entre l’espérance de vie, la mortalité infantile, la fécondité, le PIB par habitant ainsi que la balance commerciale, qui sont fortement corrélées à la première dimension. Par ailleurs, les importations apparaissent davantage associées à la deuxième dimension que les exportations, traduisant une meilleure contribution à la structuration de cet axe.
+
+```{r}
+#Ajout des autres variables
+DIANE_complete3<- bind_cols(
+  DIANE_complete2|> select(Pays, Niveau_développement, Région_géographique, Inflation, Dépenses_santé),
+  DIANE_complete3[["res.imputePCA"]] )
+  
+  summary(DIANE_complete3)
+```
+
+```{r}
+# verification 
+gg_miss_upset(DIANE_complete3, nset=12)
+
+miss_var_summary(DIANE_complete3) |> view()
+
+```
+
+# Imputation multiple (Mice)
+
+```{r}
+# Imputation multiple
+library(mice)
+#Visualisation des NA par variable
+md.pattern(DIANE_complete3,rotate.names=TRUE)
+```
+
+Après l’imputation des données manquantes par la méthode fondée sur l’ACP, deux variables présentent encore des valeurs manquantes. Celles-ci seront donc traitées à l’aide de la méthode d’imputation multiple par équations chaînées (Mice), afin de compléter les données tout en préservant la cohérence statistique des relations entre les variables.
+
+```{r}
+#Imputation mutiple avec 3 jeux de données
+DIANE_PATRICE_impute<-mice(
+DIANE_complete3,m=3)
+
+
+
+```
+
+```{r}
+#voir les imputations réalisées
+DIANE_PATRICE_impute$imp
+
+```
+
+```{r}
+#méthode appliquées
+DIANE_PATRICE_impute$method 
+```
+
+```{r}
+DIANE_complete_miss <- mice::complete(DIANE_PATRICE_impute, 2)
+
+plot(DIANE_PATRICE_impute)
+
+summary(DIANE_complete_miss)
+
+
+miss_var_summary(DIANE_complete_miss)
+```
+
+L’analyse des moyennes (mean) pour l’inflation et les dépenses de santé met en évidence des variations importantes selon le niveau de développement des pays. Pour l’inflation, on constate que certains groupes connaissent des niveaux moyens plus élevés que d’autres, mais cette tendance n’est pas uniforme : les courbes se croisent, ce qui montre que l’inflation relative des pays peut varier selon les périodes ou les conditions économiques. Concernant les dépenses de santé, la moyenne est globalement plus stable, mais certains pays en développement affichent des valeurs ponctuellement plus élevées, suggérant que la politique de financement de la santé diffère fortement d’un pays à l’autre au sein de ce groupe.
+
+L’analyse de l’écart-type (sd) complète cette observation en montrant l’hétérogénéité au sein de chaque groupe. Pour l’inflation, certains pays présentent un écart-type élevé, indiquant une forte variabilité et donc une instabilité économique plus marquée. À l’inverse, d’autres pays ont un écart-type plus faible, traduisant une inflation plus stable. Pour les dépenses de santé, certains groupes présentent également des écarts-types élevés, reflétant des disparités importantes dans le financement et l’accès aux soins, tandis que d’autres groupes montrent une homogénéité plus forte. Ces observations mettent en lumière la diversité des situations économiques et sociales des pays selon leur niveau de développement.
+
+## Resultat
+
+```{r}
+
+stats_long_fin <- DIANE_complete_miss |>
+  select(all_of(vars_quanti)) |>
+  pivot_longer(cols = everything(),
+               names_to = "Variable",
+               values_to = "Valeur") |>
+  group_by(Variable) |>
+  summarise(
+    N = sum(!is.na(Valeur)),
+    Moyenne = mean(Valeur, na.rm = TRUE),
+    Médiane = median(Valeur, na.rm = TRUE),
+    Écart_type = sd(Valeur, na.rm = TRUE),
+    Min = min(Valeur, na.rm = TRUE),
+    Max = max(Valeur, na.rm = TRUE)
+  )
+stats_long_fin |>   knitr::kable(
+    caption = "Statistique des varuiables quantiatative")
+
+
+
+```
+
+```{r}
+
+
+stats_long_debut <- bdd_projet |>
+  select(all_of(vars_quanti)) |>
+  pivot_longer(cols = everything(),
+               names_to = "Variable",
+               values_to = "Valeur") |>
+  group_by(Variable) |>
+  summarise(
+    N = sum(!is.na(Valeur)),
+    Moyenne = mean(Valeur, na.rm = TRUE),
+    Médiane = median(Valeur, na.rm = TRUE),
+    Écart_type = sd(Valeur, na.rm = TRUE),
+    Min = min(Valeur, na.rm = TRUE),
+    Max = max(Valeur, na.rm = TRUE)
+  )
+stats_long_debut |>   knitr::kable(
+    caption = "Statistique des varuiables quantiatative")
+
+
+```
+
+L'analyse porte sur 167 observations (N=167) pour les deux tableaux.Impact sur la Mortalité Infantile : Dans le premier tableau (données imputées), la valeur minimale est de -4,27. Dans le second tableau (données réelles), la valeur minimale est de 2,60. Cette valeur négative dans le premier tableau est une erreur typique d'une méthode d'imputation mal calibrée (comme une régression linéaire simple sans contrainte), car un taux de mortalité ne peut être négatif. Ajustement du Revenu : On observe une correction significative du minimum pour le Revenu. Les données imputées affichaient un minimum aberrant de -6313,19, tandis que les données réelles présentent un minimum cohérent de 609,00. Stabilité des tendances centrales : Malgré ces corrections sur les valeurs extrêmes, les moyennes et médianes restent relativement stables entre les deux versions. Par exemple, l'Espérance de vie passe d'une moyenne de 70,60 à 70,55 ans. Cela indique que les valeurs manquantes n'étaient pas assez nombreuses ou biaisées pour masquer les tendances globales du jeu de données.
+
+## Conclusion
+
+En conclusion, ce travail d'analyse sous R démontre que le niveau de développement d'un pays est un phénomène multidimensionnel où les indicateurs économiques et de santé publique s'influencent mutuellement de manière prévisible.
+
+Si la richesse (Revenu) est un moteur essentiel, elle est indissociable des progrès sanitaires (baisse de la mortalité infantile) pour assurer une amélioration réelle de la qualité de vie (Espérance de vie). Pour les décideurs, ce projet suggère que les politiques de développement les plus efficaces sont celles qui ciblent simultanément la croissance économique et l'accès aux soins de base, particulièrement dans les régions identifiées comme "Sous-développées".
+
+## Bibilographie
+
+Liste des pays du monde. (s.d.). : <https://www.techno-science.net/glossaire-definition/Liste-des-pays-du-monde-par-continent.html>
+
+Wikipédia. Consulté le 15 décembre 2025 : <https://fr.wikipedia.org/wiki/Liste_des_pays_du_monde>
+
+Moyen-Orient. (s.d.). Wikipédia. Consulté le 15 décembre 2025 : <https://fr.wikipedia.org/wiki/Moyen-Orient>
+
+Eveiller mon enfant (15 déc. 2022 ) , Géographie \|\| Les Pays d’Amérique : Amérique du Nord, Amérique centrale, Caraïbes et Amérique du Sud : <https://www.youtube.com/watch?v=Vg71D84xqa4>
+
+United Nations Statistics Division. (s.d.). Methodology: M49 Standard. Consulté le 15 décembre 2025 : <https://unstats.un.org/unsd/methodology/m49/>
+
+Liste de pays selon le schéma géographique des Nations unies. (s.d.). Wikipédia. Consulté le 15 décembre 2025 : <https://fr.wikipedia.org/wiki/Liste_de_pays_selon_le_sch%C3%A9ma_g%C3%A9ographique_des_Nations_unies>
+
+List of countries and territories by the United Nations geoscheme. (s.d.). Wikipedia. Consulté le 15 décembre 2025 : <https://fr.wikipedia.org/wiki/Liste_de_pays_selon_le_sch%C3%A9ma_g%C3%A9ographique_des_Nations_unies>
+
+Central Intelligence Agency. (2023). The World Factbook: Location (Archive). Consulté le 15 décembre 2025 : <https://www.cia.gov/the-world-factbook/about/archives/2023/field/location/>
+
+International Monetary Fund (IMF). (2023). WEO database: Groups and aggregates. Consulté le 15 décembre 2025 : <https://www.imf.org/en/publications/weo/weo-database/2023/april/groups-and-aggregates>
+
+United Nations Conference on Trade and Development (UNCTAD). (s.d.). Least developed countries: List. Consulté le 15 décembre 2025 : <https://unctad.org/topic/least-developed-countries/list>
+
+World Bank. (s.d.). World Bank country and lending groups. Consulté le 15 décembre 2025 : <https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups>
+
+BNP Paribas Economic Research. (2025, 13 novembre). Pays émergents : croissance résiste, suffit de stabiliser l’endettement public. Consulté le 15 décembre 2025 : <https://economic-research.bnpparibas.com/html/fr-FR/Editorial-Pays-emergents-croissance-resiste-suffit-stabiliser-endettement-public-13/11/2025,52989>
+
+BNP Paribas Economic Research. (2025, 13 novembre). Pays émergents : indicateurs économiques. Consulté le 15 décembre 2025 : <https://economic-research.bnpparibas.com/html/fr-FR/Pays-emergents-Indicateurs-economiques-13/11/2025,52991>
+
+DHS Program. (2015). Chapitre 8 – Mortalité infantile et maternelle \[PDF\]. Consulté le 15 décembre 2025 : <https://dhsprogram.com/pubs/pdf/FR133/08Chapitre8.pdf> UNICEF France. (s.d.). Mortalité infantile. Consulté le 15 décembre 2025 : <https://www.unicef.fr/convention-droits-enfants/sante/mortalite-infantile/>
+
+Douane Française. (s.d.). Exporté ou exportation. Consulté le 15 décembre 2025 : <https://www.douane.gouv.fr/lexique/exporte-ou-exportation>\
+Chambre de Commerce et d’Industrie Paris Île-de-France (CCI Paris IDF). (s.d.). Démarrer l’export. Consulté le 15 décembre 2025 : <https://www.cci-paris-idf.fr/fr/entreprises/croissance/developpement-international/demarrer-export>
+
+Organisation de Coopération et de Développement Économiques (OCDE). (s.d.). Indicateurs des dépenses de santé. Consulté le 15 décembre 2025 : <https://www.oecd.org/fr/data/indicators/health-spending.html>
+
+IRDES – Institut de recherche et documentation en économie de la santé. (s.d.). Dépenses de santé : définitions. Consulté le 15 décembre 2025 : <https://www.irdes.fr/enseignement/chiffres-et-graphiques/depenses-de-sante/definitions-depenses-de-sante.html>
+
+SumUp. (s.d.). Importation. Consulté le 15 décembre 2025 : <https://www.sumup.com/fr-fr/factures/termes-comptables/importation/>\
+Eurofiscalis. (s.d.). Importation. Consulté le 15 décembre 2025 : <https://www.eurofiscalis.com/lexiques/importation/>
+
+AskFilo. (s.d.). How is income an important factor in assessing development? Consulté le 15 décembre 2025 : <https://askfilo.com/user-question-answers-smart-solutions/question-1-how-is-income-an-important-factor-in-assessing-3335393738323031>
+
+SumUp. (s.d.). Importation. Consulté le 15 décembre 2025 : <https://www.sumup.com/fr-fr/factures/termes-comptables/importation/> Eurofiscalis. (s.d.). Importation. Consulté le 15 décembre 2025 : <https://www.eurofiscalis.com/lexiques/importation/>
+
+Inflation. (s.d.). Wikipédia. Consulté le 15 décembre 2025 : <https://fr.wikipedia.org/wiki/Inflation>
+
+Espérance de vie humaine. (s.d.). Wikipédia. Consulté le 15 décembre 2025 : <https://fr.wikipedia.org/wiki/Esp%C3%A9rance_de_vie_humaine>
+
+Eurostat. (s.d.). Glossaire : Fécondité. Consulté le 15 décembre 2025 : <https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Fertility/fr>
+
+FERDI – Fondation pour les Études et Recherches sur le Développement International. (s.d.). PIB par habitant (US\$ courants). Consulté le 15 décembre 2025 : <https://competitivite.ferdi.fr/indicateurs/pib-par-habitant-us-courants>
+
+limitée à exporter des produits diversifiés et à forte valeur ajoutée. Eurostat. (s.d.). Glossaire : Balance commerciale. Consulté le 15 décembre 2025 : <https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Trade_balance/fr#:~:text=La%20balance%20commerciale%20est%20la,import%C3%A9s%20par%20le%20m%C3%AAme%20pays>
+
+AvaTrade. (s.d.). Balance of trade. Consulté le 15 décembre 2025, : <https://www.avatrade.fr/education/economic-indicators/fundamental-indicators/balance-of-trade#:~:text=La%20balance%20commerciale%20montre%20si,cours%20de%20la%20p%C3%A9riode%20consid%C3%A9r%C3%A9e>

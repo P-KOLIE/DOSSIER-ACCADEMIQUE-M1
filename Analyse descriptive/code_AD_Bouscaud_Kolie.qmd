@@ -1,0 +1,885 @@
+---
+title: "Analyse des inégalités entre les pays du monde à l'aide d'indicateurs socio-économiques, démographiques & sanitaires"
+
+author: "Patrice Kolié & Jules Bouscaud"
+format:
+  pdf:
+    code-blocks: true
+    toc: true
+    toc-title: "Table des matières"
+editor: visual
+---
+
+
+
+```{r}
+#| include: false
+
+# importation des librairies 
+library(FactoMineR)
+library(Factoshiny)
+library(corrplot)
+library(dplyr)
+library(vcd)
+library(psych)
+library(readxl)
+library(factoextra)
+library(tidyverse)
+library(car)
+library(EnvStats)
+library(outliers)
+library(gridExtra)
+library(knitr)
+```
+
+```{r}
+#| include: false
+
+# Vecteurs couleurs
+couleurs <- c("Europe" = "#1F77B4", "Asie" = "purple", "Afrique" = "#FF7F0E", "Amérique" = "#D62728", "Océanie" = "#2CA02C")
+
+couleurs2 <- c("Émergent" = "gold", "Développé" = "red", "En développement" =  "orange", "Sous-développé" = "brown")
+
+```
+
+```{r}
+#| include: false
+
+# Importation de la base de données
+setwd("C:/Users/julo6/OneDrive/Master ECAP/Analyse descriptives des données")
+pays <- read_excel("base_pays.xlsx")
+```
+
+```{r}
+#| include: false
+
+# Première colonne en index
+pays <- pays |>  column_to_rownames( var = "Pays")
+```
+
+```{r}
+#| include: false
+
+# Nature des variables 
+str(pays)
+```
+
+```{r}
+#| include: false
+
+# Recoder le type des variables 
+pays$Région_géographique <- as.factor(pays$Région_géographique)
+pays$Niveau_développement <- as.factor(pays$Niveau_développement)
+```
+
+\pagebreak
+
+# Introduction
+
+Aujourd’hui, des écarts importants persistent entre les pays développés et les pays en développement, notamment en matière de richesse, de santé et de conditions de vie. Alors que certains pays connaissent une croissance économique soutenue, d’autres demeurent confrontés à des difficultés structurelles durables. Ces disparités peuvent s’expliquer par plusieurs facteurs, tels que l’efficacité des politiques publiques, les investissements dans la santé et l’éducation, ainsi que des contextes institutionnels et économiques contrastés.
+
+Dans ce contexte, il apparaît pertinent de mobiliser les outils de l’analyse statistique afin de mieux comprendre les mécanismes sous-jacents à ces inégalités. Dans cette étude, nous allons nous attacher à analyser et comprendre les disparités continentales à l’aide d’indicateurs macroéconomiques, socio-économiques, démographiques et sanitaires.
+
+Pour mener cette étude, nous nous sommes appuyés sur une base de données internationale regroupant plusieurs indicateurs économiques, démographiques et sanitaires, tels que le produit intérieur brut (PIB), l’espérance de vie, la mortalité infantile ou encore les dépenses de santé. Ces variables offrent une vision synthétique mais pertinente du niveau de développement des pays étudiés.
+
+L’analyse est structurée en plusieurs étapes. Dans un premier temps, une analyse statistique univariée est réalisée afin de décrire individuellement chaque variable et d’en dégager les principales caractéristiques. Dans un second temps, une analyse statistique bivariée permet d’étudier les relations entre les variables prises deux à deux, en mobilisant des outils tels que les coefficients de corrélation, les tests statistiques et les représentations graphiques appropriées. Enfin, deux analyses factorielles — une analyse factorielle des correspondances (AFC) et une analyse en composantes principales (ACP) — seront menées afin de réduire la dimensionnalité des données et d’identifier des structures globales et des profils de pays.
+
+L’objectif de ce travail est double : d’une part, mettre en œuvre de manière rigoureuse les méthodes statistiques étudiées au cours, et d’autre part, apporter une lecture synthétique et interprétable des disparités de développement entre les pays. Bien que la base de données utilisée ne soit pas exhaustive, nous faisons l’hypothèse qu’elle est suffisamment représentative pour dégager des tendances générales et proposer une interprétation statistique cohérente et pertinente au regard de la problématique posée.
+
+\pagebreak
+# Description de la base de données
+
+La base de données utilisée dans cette étude est issue de la plateforme Kaggle et regroupe des indicateurs socio-économiques et sanitaires relatifs à plusieurs pays. Elle se compose de 167 observations, chaque observation correspondant à un pays, et de 10 variables décrivant différents aspects du niveau de développement économique, des conditions de santé et de la situation géographique.
+
+Les variables initiales de la base permettent notamment d’appréhender le niveau de richesse, la situation sanitaire et certaines caractéristiques structurelles des pays. Bien que cette base ait été initialement conçue dans un objectif d’identification des pays nécessitant une aide prioritaire, notre démarche s’inscrit dans une perspective différente. En effet, l’objectif de cette étude est d’analyser les sources des inégalités de développement et de ressources entre les pays, à partir d’une approche statistique rigoureuse.
+
+Afin d’éviter une simple reproduction de l’analyse proposée sur Kaggle et d’apporter une valeur ajoutée à notre travail, nous avons choisi d’enrichir la base de données initiale. Deux variables supplémentaires ont ainsi été construites : un niveau de développement et une zone géographique. Ces nouvelles variables permettent d’affiner l’analyse et de mieux capter les disparités structurelles entre les continents.
+
+Cette base enrichie constitue le support de l’ensemble des analyses réalisées dans ce dossier. La section suivante est consacrée à la description détaillée des variables utilisées, préalable indispensable à la mise en œuvre des analyses statistiques univariées, bivariées et factorielles.
+
+<u>Variables qualitatives</u>
+
+La variable *Pays* représente le nom des États. Notre base de données couvre environ 85 % des pays du monde, soit 167 sur 197. Cette variable sert d’index principal dans l’étude.
+
+La variable *Région géographique*, ajoutée à notre base de données, regroupe les pays en fonction de leur situation géographique, en s’appuyant sur plusieurs sources fiables (Wikipédia, ONU, CIA World Factbook, EMIW, etc.). Les zones retenues sont : Afrique, Amérique, Asie, Europe, Océanie.
+
+La variable *Niveau_de_développement* a été créée afin d’adapter la base de données à notre problématique. Elle permet d’analyser les différences entre pays selon leur niveau de développement et constitue un élément central de notre étude. Les pays sont classés en quatre catégories principales : développé, en développement, émergent et sous-développé. Cette classification s’appuie sur plusieurs sources fiables, notamment le FMI, la Banque mondiale, l’UNCTAD et des analyses économiques spécialisées (BNP Paribas). Elle offre ainsi un cadre cohérent pour comparer les pays et évaluer leur position dans le contexte mondial.
+
+
+<u> Variables quantitatives </u>
+
+La  variable *Child_mort* mesure la mortalité infantile (nombre d’enfants de moins de 5 ans décédés pour 1 000 naissances vivantes). En 2021, environ 5 millions d’enfants sont morts avant l’âge de 5 ans, et 1,9 million sont nés morts (DHS Program, 2015 ; UNICEF France, s.d.). Cet indicateur est essentiel pour évaluer le niveau de développement d’un pays, car il reflète la qualité des services de santé, de la nutrition et des conditions de vie. Il constitue également une composante de l’Indice de Développement Humain (IDH).
+
+La variable *Exports* mesure les exportations de biens et services par habitant, exprimées en pourcentage du PIB par habitant. Elle reflète la capacité d’un pays à vendre des biens et services à l’étranger (Douane Française, s.d. ; CCI Paris IDF, s.d.).
+
+La variable *Health* mesure les dépenses totales de santé par habitant, exprimées en pourcentage du PIB. Elle inclut la consommation de biens et services médicaux, tels que les soins curatifs, la réadaptation, la prévention et les services de santé publique. Ces dépenses sont financées par des régimes publics obligatoires et/ou des assurances privées (OCDE, s.d. ; IRDES, s.d.).
+
+La variable *Imports* mesure les importations de biens et services par habitant, exprimées en pourcentage du PIB. Elle reflète l’entrée de biens et services achetés à l’étranger, ce qui permet aux pays d’accéder à des matières premières, des technologies et des savoir-faire, tout en générant des flux financiers (SumUp, s.d. ; Eurofiscalis, s.d.).
+
+La variable *Income* mesure le revenu net par personne, reflétant le bien-être économique d’une population. Un revenu élevé favorise l’accès à l’alimentation, à l’éducation, aux soins de santé et au logement, et constitue un indicateur clé de la qualité de vie (AskFilo, s.d.).
+
+La variable *Inflation* mesure la hausse générale et durable des prix dans un pays, entraînant une perte du pouvoir d’achat. Lorsque les prix augmentent, une même somme d’argent permet d’acheter moins de biens et services (Wikipédia, s.d.). Bien que le lien avec le développement soit moins direct que pour d’autres indicateurs économiques, une inflation stable et faible est généralement caractéristique des pays développés, reflétant la stabilité économique et la capacité des autorités à réguler les marchés
+
+La variable *Life_expec* mesure le nombre moyen d’années qu’un nouveau-né pourrait espérer vivre si les tendances actuelles en matière de mortalité restaient inchangées (Wikipédia, s.d.). Cet indicateur est largement utilisé pour évaluer le développement humain, car il reflète les conditions sanitaires, l’accès aux soins de santé, la nutrition et le niveau de vie.
+
+La variable *Total_fer* mesure le nombre moyen d’enfants qu’une femme pourrait avoir si les taux de fécondité par âge restaient constants (Eurostat, s.d.). Cet indicateur est un élément clé de l’analyse démographique, permettant d’évaluer la reproduction et la croissance de la population.
+
+La variable *gdpp* ou PIB/hab mesure le produit intérieur brut par habitant, calculé en divisant le PIB total d’un pays par sa population totale (FERDI, s.d.). Cet indicateur permet d’évaluer la richesse moyenne produite par habitant et sert à comparer le niveau économique entre pays.
+
+\pagebreak
+# Analyse Statistique Univariée
+
+L'objectif de l'analyse statistique univariée est d'étudier afin de décrire et de comprendre le comportement des variables indépendamment des autres. L'analyse univariée nous donne un premier aperçu de notre jeu de données, important pour mieux le comprendre et le cerner.
+
+## Statistiques descriptives
+
+```{r}
+#| echo: false
+
+summary(pays)
+```
+
+L’Afrique est le continent qui compte le plus de pays. L’Asie et l’Europe présentent un nombre de pays quasiment identique, tandis que l’Amérique et l’Océanie en comptent nettement moins. 
+On observe également une prépondérance de pays en voie de développement. Les pays développés et émergents ne représentent qu’environ un tiers de l’ensemble des pays.
+
+Si l’on s’intéresse de près aux différents indicateurs, on remarque de très fortes disparités entre les pays : les écarts interquartiles sont particulièrement élevés. Par exemple, pour la mortalité infantile (child_mort), le minimum est de 2,6 pour 1000 naissances, tandis que le maximum atteint 208 pour 1000 naissance. La médiane est plus basse que la moyenne notamment à cause de grandes valeurs qui viennent affectése la moyenne.
+
+Il en va de même pour les indicateurs macroéconomiques monétaires tels que le PIB/hab, les revenus/hab, les importations, les exportations ou encore l’inflation.
+Certains pays commercent massivement avec l’extérieur, alors que d’autres restent très peu intégrés aux échanges internationaux. De même, certains pays connaissent un taux d’inflation extrêmement élevé (jusqu’à 104 %), tandis que d’autres affichent une inflation très faible, voire négative (minimum à –4,2 %).
+En ce qui concerne les indicateurs liés au niveau de vie (qualité de vie, santé), on observe à nouveau des écarts interquartiles importants. Toutefois, si l’on s’intéresse à la médiane, on constate que pour nos deux indicateurs, elle reste relativement élevée (respectivement 73,10 et 6,320) et supérieure à la moyenne pour la qualité de vie, ce qui suggère qu’une majorité de pays se situent à un niveau intermédiaire ou relativement favorable, malgré les extrêmes observés.
+
+
+## Histogramme
+
+### Histogramme variables économiques
+
+```{r}
+#| echo: false
+#| 
+g2 <- pays |> 
+  ggplot()+
+  aes(x = exports)+
+  geom_histogram(binwidth = 10, fill = "yellow", color = "black" )+
+  labs(title = "Distribution des exporations")+
+  theme_classic()
+
+g3 <- pays |> 
+  ggplot()+
+  aes(x = imports)+
+  geom_histogram(binwidth = 10, fill = "yellow", color = "black" )+
+  labs(title = "Distribution des importations")+
+  theme_classic()
+  
+g4 <- pays |> 
+  ggplot()+
+  aes(x = income)+
+  geom_histogram(bins = 100, fill = "yellow", color = "black" )+
+  labs(title = "Distribution des revenus")+
+  theme_classic()
+  
+g5 <- pays |> 
+  ggplot()+
+  aes(x = gdpp)+
+  geom_histogram(bins = 30, fill = "yellow", color = "black" )+
+  labs(title = "Distribution du PIB/hab")+
+  theme_classic()
+
+g6 <- pays |> 
+  ggplot()+
+  aes(x = inflation)+
+  geom_histogram(bins = 10, fill = "yellow", color = "black" )+
+  labs(title = "Distribution de l'inflation")+
+  theme_classic()
+
+grid.arrange(g2, g3, g4, g5, g6, nrow = 3)
+  
+```
+
+Les distributions des exportations et des importations présentent des caractéristiques très similaires. Dans les deux cas, elles sont asymétriques vers la gauche. Cependant, la majorité des pays se situent autour de 30–40, mais quelques valeurs très élevées tirent la distribution vers la droite, suggérant la présence potentielle de valeurs aberrantes. Ces observations traduisent des niveaux d’ouverture commerciale très hétérogènes selon les pays, certains étant fortement intégrés dans les échanges internationaux tandis que d’autres le sont beaucoup moins.
+
+Les indicateurs économiques tels que les revenus et le PIB par habitant montrent également des distributions très inégalitaires. Elles sont fortement asymétriques vers la gauche : une grande majorité de pays affichent des niveaux faibles ou modestes, tandis qu’un nombre restreint de pays présentent des valeurs extrêmement élevées qui tirent la distribution vers la droite. Cette configuration illustre la concentration de la richesse mondiale entre les mains d’un petit groupe de pays, alors que la majorité reste à des niveaux économiques nettement inférieurs.
+
+Enfin, la distribution de l’inflation suit une dynamique comparable. Elle est elle aussi asymétrique vers la gauche, avec une forte concentration de pays autour d’un taux d’inflation modéré (environ 5 %) et quelques pays connaissant des niveaux d’inflation très élevés qui déforment la distribution. Cela met en évidence une stabilité relative pour la plupart des pays, contrastant avec des situations extrêmes d’hyperinflation dans certains cas.
+
+
+### Histogramme variables sanitaires et démographiques
+
+```{r}
+#| echo: false
+
+g7 <- pays |> 
+  ggplot()+
+  aes(x = health)+
+  geom_histogram(bins = 10, fill = "pink", color = "black" )+
+  labs(title = "Distribution du niveau de santé")+
+  theme_classic()
+
+g8 <- pays |> 
+  ggplot()+
+  aes(x = life_expec)+
+  geom_histogram(binwidth = 5, fill = "pink", color = "black" )+
+  labs(title = "Distribution de la qualité de vie")+
+  theme_classic()
+  
+  
+g9 <- pays |> 
+  ggplot()+
+  aes(x = total_fer)+
+  geom_histogram(bins = 10, fill = "pink", color = "black" )+
+  labs(title = "Distribution du taux de fécondité")+
+  theme_classic()
+  
+g10<- pays |> 
+  ggplot()+
+  aes(x = child_mort)+
+  geom_histogram(binwidth = 10, fill = "pink", color = "black" )+
+  labs(title = "Distribution de la mortalité infantiles")+
+  theme_classic()
+
+grid.arrange(g7, g8, g9,g10, nrow = 2)
+  
+```
+
+Les indicateurs liés au niveau de santé, à la mortalité infantile et à la qualité de vie présentent des distributions globalement asymétriques, révélant des disparités importantes entre les pays. Le niveau de santé apparaît d’abord comme relativement élevé dans la majorité des pays : la distribution semble presque normale au premier regard, mais la présence de valeurs très élevées (supérieures à 15) crée une asymétrie vers la droite. La plupart des pays se situent entre 5 et 10, ce qui traduit un niveau de dépenses ou de performance sanitaire globalement satisfaisant.
+
+La mortalité infantile est asymétrique vers gauche : de nombreuses observations sont proches de 0, tandis que quelques valeurs très élevées tirent la distribution vers la droite. Cela montre que, dans la majorité des pays, la mortalité infantile est faible, mais qu’un petit nombre de pays connaissent des niveaux extrêmement élevés. Ces valeurs extrêmes suggèrent la présence potentielle d’outliers, qu’il conviendra de vérifier statistiquement.
+
+La distribution de la variable qualité de vie est fortement asymétrique vers la droite: elle est très concentrée sur les valeurs élevées, avec seulement quelques pays affichant une qualité de vie extrêmement faible. Cela indique que, pour la quasi-totalité des pays, le niveau de vie est relativement bon, même si quelques exceptions subsistent.
+
+Enfin, la variable liée au nombre d’enfants par femme montre une asymétrie vers la gauche : beaucoup de pays présentent des valeurs faibles (autour de 2 à 3 enfants), tandis que quelques pays affichent des niveaux plus élevés pouvant atteindre 7. Cette distribution met en évidence deux groupes distincts : des pays à faible fécondité, souvent plus développés, et d’autres où la fécondité reste élevée.
+
+
+## Diagramme
+
+```{r}
+#| echo: false
+
+# ---- 1. Nombre de pays par continent ----
+pays_count <- pays |>
+  count(Région_géographique, name = "Nombre") |>
+  mutate(Label = Nombre)
+
+ggplot(pays_count) +
+  aes(x = "", y = Nombre, fill = Région_géographique) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = Label),
+            position = position_stack(vjust = 0.5),
+            color = "white", size = 4) +
+  scale_fill_manual(values = couleurs) +
+  theme_void() +
+  labs(title = "Nombre de pays par continent")
+
+# ---- 2. Nombre de pays par niveau de développement ----
+pays_nv_dev <- pays |>
+  count(Niveau_développement, name = "Nombre") |>
+  mutate(Label = Nombre)
+
+ggplot(pays_nv_dev) +
+  aes(x = "", y = Nombre, fill = Niveau_développement) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  geom_text(aes(label = Label),
+            position = position_stack(vjust = 0.5),
+            color = "white", size = 4) +
+  scale_fill_manual(values = couleurs2) +
+  theme_void() +
+  labs(title = "Nombre de pays par niveau de développement")
+```
+
+
+
+Ce diagramme illustre la répartition des pays dans les divers continents ainsi que leur niveau de développement. On retrouve visuellement le constat fait après l'étude des statistiques descriptives.
+
+## Boxplot
+
+### Boxplot variables sanitaires et démographiques
+
+```{r}
+#| echo: false
+
+pays_long2 <- pays %>%
+  pivot_longer(
+    cols = c(child_mort, health, life_expec, total_fer),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+
+ggplot(pays_long2, aes(x = "", y = value, fill = variable)) +
+  geom_boxplot(color = "black") +
+  facet_wrap(~ variable, scales = "free", nrow = 1) +
+  scale_fill_manual(values = rep("pink", 4)) +
+  labs(
+    title = "Boxplots des indicateurs démographiques",
+    x = "",
+    y = "Valeur"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(size = 12, face = "bold")
+  )
+
+
+```
+Les boxplots reprennent visuellement les statistiques descriptives analysées précédemment (médiane & quantiles). Ils confirment l'existence d'une grande disparité entre les pays. Ils permettent aussi de mettre détecter d'éventuels outliers avec des valeurs atypiques
+
+```{r}
+#| include: false
+
+rosnerTest(pays$child_mort, k = 10)
+rosnerTest(pays$health, k = 10)
+rosnerTest(pays$life_expec, k = 10)
+grubbs.test(pays$total_fer)
+
+```
+
+L'étude des outliers (étude des boxplots et différents tests de détections des outliers) a permis de mettre en évidence plusieurs valeurs atypiques qui correspondent aux observations suivantes: 
+
+- Haïti avec une mortalité infantiles très élevée et des conditions de vie très difficiles. Haïti étant un pays fortement soumis aux aléas climatiques, il n'est pas choquant de le retrouver comme outlier.
+- Les Etats-Unis avec un niveau de santé très important 
+
+
+### Boxplot variables économique
+
+```{r}
+#| echo: false
+
+pays_long <- pays %>%
+  pivot_longer(cols = c(exports, imports, income, inflation, gdpp),
+               names_to = "variable",
+               values_to = "value")
+
+
+ggplot(pays_long, aes(y = value, x = "", fill = variable)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  scale_fill_manual(values = rep("yellow", 5)) +
+  labs(title = "Boxplots des variables économiques",
+       x = "",
+       y = "Valeur") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+Les boxplots des indicateurs monétaires sont pour la plus part écrasés vers 0 synonyme de faible richessesse. Ils mettent en évidence une grande quantité de potentiels outliers. 
+Ce qui vient encore une fois confirmer les inégalités existantes entre les pays.
+```{r}
+#| include: false
+
+rosnerTest(pays$exports, k = 10)
+rosnerTest(pays$imports, k = 10)
+rosnerTest(pays$income, k = 10)
+rosnerTest(pays$inflation, k = 10)
+rosnerTest(pays$gdpp, k = 10)
+
+```
+
+Elle a également de mettre en évidence les observations suivantes: 
+
+- Singapour avec un fort niveau de commerce international (import/export) et par conséquent un niveau de revenu très élevé
+- Luxembourg, Malte avec un fort niveau de commerce international également.
+- Qatar, le Brunei & le Koweït avec des revenus très élevés notamment grâce au pétrole
+- La Suisse, la Norvège et le Qatar avec un PIB nettement supérieur à la majorité des pays
+- Le Nigéria, le Vénézuela & la Mongolie avec des taux d'inflations extrêmement élevés
+
+<u>CONCLUSION:</u> Les valeurs atypiques concernent surtout les pays très pauvres avec des faibles niveaux de vie et les pays très riches qui commercent beaucoup et a fort revenu. Cette étude nous à permis de mettre en évidence les observations qui ont des caractéristiques extrêmes qui sont susceptibles de se démarquer dans l'ACP.
+
+\pagebreak
+
+## Test de Shapiro Wilk
+
+```{r}
+#| include: false
+
+vars_numeriques <- pays |>
+  select(where(is.numeric)) |>
+  names()
+
+for (var in vars_numeriques) {
+  cat("\nVariable :", var, "\n")
+  print(shapiro.test(pays[[var]]))
+ # Utilise num_df, pas base
+}
+```
+
+
+```{r}
+#| echo: false
+
+vars <- c("child_mort", "exports", "health", "imports",
+          "income", "inflation", "life_expec", "total_fer", "gdpp")
+
+shapiro_results <- data.frame(
+  Variables = vars,
+  W = sapply(vars, function(v) shapiro.test(pays[[v]])$statistic),
+  p_value = sapply(vars, function(v) shapiro.test(pays[[v]])$p.value)
+)
+
+shapiro_results |>  
+  knitr::kable(caption = "Test de normalité des variables",
+    row.names = FALSE)
+```
+
+Toutes les p-values issues du test de Shapiro-Wilk sont inférieures au seuil de significativité de 5 %. L’hypothèse nulle H0, correspondant à la normalité des distributions des variables, est donc rejetée. La condition de normalité n’étant pas vérifiée, il est ainsi plus approprié de recourir à un coefficient de corrélation non paramétrique ,en conséquence, la corrélation de Spearman sera utilisée pour l’analyse des relations entre les variables.
+
+
+**CONCLUSION DE L'ANALYSE UNIVARIEE:**
+
+L'analyse univariée a mis en évidence la disparité entre les différents pays du monde. On a des pays avec un niveau de richesse important, très ouvert au monde par le commerce ainsi qu'une grande qualité de vie. Et de l'autre côté, on a des pays très pauvre avec une faible niveau de vie (beaucoup de mortalité infantile, faible niveau de santé).
+
+# Analyse statistique bivariée
+
+L'analyse bivariée permet de mettre en évidence les liens qui peuvent exister entre les différentes variables de notre jeu de données peu importe leur nature. Cette étape est essentielle pour comprendre comment les indicateurs économiques, démographiques et sanitaires interagissent entre eux et contribuent aux disparités observées entre les pays
+
+## Relation entre deux variables quantitatives 
+
+### Matrice de corrélation de Spearman
+
+```{r}
+#| include: False
+
+num_df <- pays |> 
+  select(where(is.numeric)) |> 
+  mutate(across(everything(), ~ as.numeric(.)))  
+
+corr <- cor(num_df, use = "pairwise.complete.obs", method = "spearman")
+
+
+corrplot(corr,
+         method = "number",       # Affiche les coefficients
+         type = "upper",          # Affiche la moitié supérieure
+         tl.cex = 0.8,            # Taille des labels
+         tl.col = "black",
+         number.cex = 0.7,        # Taille des chiffres
+         col = colorRampPalette(c("blue", "skyblue", "red"))(200),  # Palette de couleurs
+         cl.pos = "r",            # Position de la légende à droite
+         mar = c(0,0,1,0))
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+library(PerformanceAnalytics)
+
+chart.Correlation(
+  pays[, vars],   # vars contient les noms des 9 variables
+  histogram = TRUE,
+  pch = 19,
+  method = "spearman"
+)
+
+```
+
+On obtient ainsi la matrice de corrélation de Spearman présentée ci-dessus. Dans notre analyse, nous nous intéresserons plus particulièrement aux coefficients de corrélation proches de 0.6, traduisant des relations fortes entre les variables.
+
+Le tableau ci-dessus récapitule l’ensemble des coefficients de corrélation de Spearman ainsi que les p-values associées, permettant d’évaluer la significativité statistique des principales relations observées.
+
+```{r}
+#| include: false
+cor.test(pays$life_expec, pays$child_mort, method = "spearman")
+cor.test(pays$life_expec, pays$income, method = "spearman")
+cor.test(pays$life_expec, pays$total_fer, method = "spearman")
+
+
+cor.test(pays$life_expec, pays$gdpp, method = "spearman")
+cor.test(pays$income, pays$gdpp, method = "spearman")
+cor.test(pays$child_mort, pays$total_fer, method = "spearman")
+cor.test(pays$imports, pays$exports, method = "spearman")
+
+```
+
+```{r}
+#| echo: false
+tableau1 <- pairs_vars <- data.frame(
+  var1 = c("life_expec", "life_expec", "life_expec", "lif_expec",
+           "income", "child_mort", "imports"),
+  var2 = c("child_mort", "income", "total_fer", "gdpp",
+           "gdpp", "total_fer", "exports"),
+  ρ  = c(-0.91, 0.84, -0.77, 0.85, 0.98, 0.86, 0.57),
+  "p-value" = c("< 2.2e-16", "< 2.2e-16", "< 2.2e-16", "< 2.2e-16", "< 2.2e-16", "< 2.2e-16", "5.74e-16")
+)
+tableau1 |> knitr::kable(
+  caption = "Coefficients de corrélation"
+)
+
+```
+(ρ = −0,91, corrélation très forte et négative)
+Cette corrélation élevée et négative indique que les pays caractérisés par une forte mortalité infantile connaissent une espérance de vie nettement plus faible. Ce résultat est cohérent avec la définition de ces indicateurs : une mortalité élevée chez les enfants de moins de cinq ans reflète des systèmes de santé déficients, des conditions de vie précaires et un accès limité aux soins, impactant directement la longévité de la population.
+ 
+Mortalité infantile et fécondité totale 
+(ρ = 0,86, corrélation très forte et positive)
+La forte corrélation positive suggère que les pays ayant un taux de fécondité élevé présentent également une mortalité infantile plus importante. Dans les pays en développement, une fécondité élevée est souvent associée à des contraintes économiques, à un accès limité aux services de santé maternelle et infantile, ainsi qu’à une planification familiale insuffisante.
+ 
+Espérance de vie et fécondité totale 
+(ρ = −0,77, corrélation forte et négative)
+Cette corrélation négative montre que les pays où les femmes ont en moyenne plus d’enfants présentent une espérance de vie plus faible. Une fécondité élevée s’accompagne généralement de ressources sanitaires et éducatives limitées, affectant la santé globale de la population.
+Espérance de vie et revenu 
+
+(ρ = 0,84, corrélation forte et positive)
+La corrélation positive indique que l’augmentation du revenu par habitant est associée à une hausse de l’espérance de vie. Un revenu plus élevé facilite l’accès à une alimentation de qualité, à l’éducation, aux soins de santé et à de meilleures conditions de logement.
+Espérance de vie et PIB par habitant (GDPp) 
+
+(ρ = 0,85, corrélation forte et positive)
+Le lien positif entre le PIB par habitant et l’espérance de vie suggère que les pays économiquement plus riches offrent de meilleures conditions sanitaires et sociales.
+Revenu et PIB par habitant 
+
+(ρ = 0,98, corrélation très forte et positive)
+Cette corrélation très élevée confirme que le revenu par personne et le PIB par habitant mesurent des dimensions proches du niveau économique d’un pays. Les pays à forte production de richesse par habitant sont également ceux où les individus disposent, en moyenne, de revenus plus élevés.
+Exportations et importations 
+
+(ρ = 0,54, corrélation modérée et positive)
+La corrélation positive entre exportations et importations traduit une bonne intégration des pays dans les échanges internationaux. Les économies ouvertes tendent à importer davantage de biens et services tout en exportant une part importante de leur production.
+
+\pagebreak
+
+## Relation entre les variables quantitatives et qualitatives
+
+### ANOVA
+
+Anova nous permet de savoir si la moyenne de la variable quantitative etudiée est homogène sur l'ensemble des modalités de la variables qualitative.
+
+*H0 : les moyennes de la variable quantitative sont identiques pour tous les groupes d’un facteur H1 : au moins une moyenne est différente*
+
+```{r}
+#| include: false
+
+anova_test_child_mort <- aov(child_mort ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_exports <- aov(exports ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_health <- aov(health ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_imports <- aov(imports ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_income <- aov(income ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_inflation <- aov(inflation ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_life_expec <- aov(life_expec ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_total_fer <- aov(total_fer ~ Région_géographique + Niveau_développement, data = pays)
+anova_test_gdpp <- aov(gdpp ~ Région_géographique + Niveau_développement, data = pays)
+
+summary(anova_test_child_mort)
+summary(anova_test_exports)
+summary(anova_test_health)
+summary(anova_test_imports)
+summary(anova_test_income)
+summary(anova_test_inflation)
+summary(anova_test_life_expec)
+summary(anova_test_total_fer)
+summary(anova_test_gdpp)
+```
+
+Le tableau si dessous récapitule les p-values pour les différentes ANOVA réalisée. 
+
+```{r}
+#| echo: false
+
+tableau1 <- data.frame(
+  "p-value"  = c("Région_géographique", "Niveau_développement"),
+
+  child_mort = c("< 2e-16 ***", "4.39e-16 ***"),
+  exports = c("0.00233 **", "0.00132 **"),
+  health = c("2.74e-12 ***", "5.81e-06 ***"),
+  income = c("3.81e-10 ***", "9.31e-11 ***"),
+  life_expec = c("< 2e-16 ***", "1.75e-15 ***"))
+
+tableau1 |> knitr::kable( caption = "Résultat ANOVA")
+
+tableau2 <- data.frame(
+  "p-value"  = c("Région_géographique", "Niveau_développement"),
+  total_fer = c("< 2e-16 ***", "1.41e-15 ***"),
+  gdpp = c("9.95e-15 ***", " < 2e-16 ***"),
+  imports = c("0.0643 .", "0.5647"),
+  inflation = c("0.00205 **", "0.05831 . "))
+
+tableau2 |> knitr::kable( caption = "Résultat ANOVA")
+```
+
+L’ANOVA réalisée sur l’ensemble des variables quantitatives montre que la mortalité infantile, l’espérance de vie, la fécondité totale, le revenu, le PIB par habitant, les exportations et les dépenses de santé présentent des différences de moyennes statistiquement significatives au seuil de 1 % selon la région géographique et le niveau de développement des pays (p<0,01). Ces résultats indiquent que la santé, la démographie et l’économie sont fortement influencées par le contexte régional et le degré de développement, les pays développés affichant généralement des indicateurs plus favorables que les pays en développement ou émergents.
+
+En revanche, pour les importations et l’inflation, l’analyse révèle que les importations ne diffèrent pas significativement selon la région géographique ni le niveau de développement (p>0,05). L’inflation, quant à elle, varie significativement entre les régions géographiques (p=0,002<0,01), mais n’est pas affectée par le niveau de développement (p=0,058>0,01). Ces résultats suggèrent que, si certaines dimensions économiques sont globalement liées au développement et à la région géographique, d’autres indicateurs, comme les importations, restent relativement homogènes. L’inflation apparaît, quant à elle, partiellement homogène.
+
+
+### Boxplot en fonction du niveau de développement 
+
+```{r}
+#| echo: false
+
+pays %>%
+  pivot_longer(
+    cols = where(is.numeric),
+    names_to = "variable",
+    values_to = "mesure"
+  ) %>%
+  ggplot() +
+  aes(
+    x = Niveau_développement,
+    y = mesure,
+    color = Niveau_développement,
+    fill = Niveau_développement
+  ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_boxplot(alpha = 0.5) +
+  
+  scale_color_manual(values = couleurs2) +
+  scale_fill_manual(values = couleurs2) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+```
+Les boxplot confirment les résultats de l'ANOVA. Les importations sont relativement non affectées par le niveau de développement, idem pour l'inflation.
+
+### Boxplot en fonction de la région géographique.
+
+```{r}
+#| echo: false
+
+pays %>%
+  pivot_longer(
+    cols = where(is.numeric),
+    names_to = "variable",
+    values_to = "mesure"
+  ) %>%
+  ggplot() +
+  aes(
+    x = Région_géographique,
+    y = mesure,
+    color = Région_géographique,
+    fill = Région_géographique
+  ) +
+  facet_wrap(~variable, scales = "free") +
+  geom_boxplot(alpha = 0.5) +
+  scale_color_manual(values = couleurs) +
+  scale_fill_manual(values = couleurs) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+```
+
+La visualisation des boxplots en fonction de la région géographique confirme les résultats de l'ANOVA, en effet, l'inflation n'a pas l'air d'être affecté par la région géographique des pays.
+
+## Relation entre deux variables qualitatives 
+
+### Tableau de contingence 
+
+```{r}
+#| echo: false
+tab <- table( pays$Niveau_développement, pays$Région_géographique)
+tab |> knitr::kable( caption = "Tableau de contingence")
+
+```
+
+Le tableau de contingence révèle de fortes disparités dans les niveaux de développement entre les régions géographiques.
+L’Europe se distingue nettement par une forte concentration de pays développés (24 pays), tandis qu’aucun pays européen n’appartient à la catégorie des pays sous-développés. À l’inverse, l’Afrique présente une majorité de pays sous-développés (28 pays) et en développement (16 pays), sans aucun pays classé comme développé, ce qui reflète un retard structurel en matière de développement économique et social.
+
+L’Asie et l’Amérique affichent des profils plus hétérogènes, avec une présence simultanée de pays émergents, en développement et développés, traduisant une diversité de trajectoires économiques au sein de ces régions. L’Océanie, bien que faiblement représentée en effectifs, comprend principalement des pays développés , en développement et sous-développé.
+
+### Test de Khi 2
+
+```{r}
+#| include: false
+chi2 <- chisq.test(tab)
+chi2
+```
+
+Le test du khi 2 d’indépendance de Pearson appliqué au tableau de contingence indique une statistique de test khi 2 = 108,49 avec 12 degrés de liberté. La p-value est inférieure à 2,2*10-¹⁶, ce qui est largement inférieur au seuil de signification de 5 %.
+
+Par conséquent, l’hypothèse nulle d’indépendance est rejetée. Il existe donc une association statistiquement significative entre la région géographique et le niveau de développement des pays. Cela signifie que la répartition des niveaux de développement varie fortement selon les régions du monde.
+
+Ces résultats confirment les observations issues du tableau de contingence, qui mettait déjà en évidence des différences marquées entre régions, notamment une concentration de pays développés en Europe et une prédominance de pays sous-développés en Afrique
+
+
+### Graphique relation entre le niveau de développement et la région géographique
+```{r}
+#| echo: false
+ggplot(pays, aes(x = Région_géographique, fill = Niveau_développement)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "",
+    y = "Effectifs"
+  ) +
+  scale_fill_manual(values = couleurs2) 
+```
+
+Encore une fois le graphique si-dessus met en évidence les observations faites précédemment.
+
+# AFC 
+
+Pour approfondir l’analyse des relations entre nos variables qualitatives et mettre en évidence des structures cachées dans les données, nous avons recours à l’Analyse Factorielle des Correspondances (AFC). Cette méthode permet de représenter graphiquement les modalités des variables dans un espace factoriel, en conservant au mieux les associations présentes dans le tableau de contingence.
+
+L’AFC est particulièrement adaptée pour dénicher des groupes de modalités, identifier des liaisons fortes ou faibles entre variables et visualiser des patterns non évidents à partir d’un simple tableau de fréquence. Elle offre ainsi un complément précieux aux analyses classiques telles que les tableaux de contingence et le test du khi 2, qui permettent seulement de tester l’existence de dépendances mais pas de visualiser la structure globale des relations.
+
+```{r}
+#| echo: false
+afc <- CA(tab, graph = TRUE)
+```
+L’analyse de l’inertie montre que l’information issue du tableau de contingence est très bien expliquée par notre plan factoriel. L’axe 1 explique à lui seul 70,88 % de l’inertie totale, tandis que l’axe 2 en explique 24,31 %, soit un cumul de 95,19 %. Un tel niveau indique que la représentation bidimensionnelle synthétise presque entièrement la structure des données. Les interprétations réalisées à partir de ce plan factoriel peuvent donc être considérées comme statistiquement fiables.
+L’axe 1, qui concentre l’essentiel de l’inertie, peut être interprété comme un axe de la richesse. Il oppose, d’un côté, les pays qualifiés de sous-développés, situés du côté négatif, et de l’autre, les pays développés, situés du côté positif.
+
+L’axe 2, secondaire, semble distinguer les pays émergents et en développement (situés dans la partie supérieure du plan), des pays sous-développés et développés (positionnés dans la partie inférieure).
+La proximité entre les régions et les niveaux de développement révèle plusieurs regroupements significatifs. Tout d’abord, un pôle de précarité se dégage, caractérisé par la forte association entre l’Afrique et le statut de sous-développé dans le quadrant inférieur gauche. À l’opposé, un pôle d’opulence apparaît, marqué par la proximité entre l’Europe et le statut développé. Enfin, un pôle de transition se dessine dans la partie supérieure du plan : l’Asie y est davantage associée au statut en développement, tandis que l’Amérique occupe une position intermédiaire entre les statuts en développement et émergent. L’Océanie, quant à elle, se situe à proximité de l’origine des axes, ce qui suggère une position plus équilibrée et un poids plus faible dans la structuration globale du nuage.
+
+Dans l’ensemble, la configuration du plan factoriel adopte une forme proche d’un V ou d’une parabole, caractéristique d’un effet de type Guttman. Cette structure traduit une progression ordonnée des situations de développement, allant de l’Afrique, associée au sous‑développement, vers l’Asie et l’Amérique, correspondant à des niveaux intermédiaires, puis jusqu’à l’Europe, clairement liée au statut de pays développés. Cette organisation hiérarchisée renforce la cohérence et la lisibilité des résultats issus de l’analyse factorielle des correspondance
+
+
+# ACP
+
+## Justification de l'utilisation d'une ACP
+
+L'analyse univariée et bivariée ont permis de mettre en évidence la structure visible de notre jeu de donnée. La réalisation d'une analyse en composantes principales, nous permet d'aller plus loin est de comprendre la structure caché. L'objectif est de réduire le nombre de dimension dans lequel on peut observer notre nuage de point, tout en conservant un maximum d'information. 
+
+Notre jeu de donnée ce prête parfaitement à cet exercice, en effet, on a une majorité de variables quantitatives. Nous avons également effectué des tests statistiques qui justifient la réalisation d'une ACP 
+
+### Calcul du déterminant
+
+```{r}
+#| include: false
+
+num_df <- pays |> 
+  select(where(is.numeric)) |> 
+  mutate(across(everything(), ~ as.numeric(.)))  
+
+corr <- cor(num_df, use = "pairwise.complete.obs", method = "spearman")
+
+det_cor <- det(corr)
+det_cor
+```
+
+Le déterminant de la matrice de corrélation est quasiment nul ce qui justifie l'utilisation d'une ACP pour résumer notre jeu de données.
+
+### Test de bartlett
+
+```{r}
+#| include: false
+
+cortest.bartlett(cor(num_df), n = nrow(num_df))
+```
+
+P value \< 0,05 donc on rejette HO la matrice de corrélation est significativement différente de la matrice identité donc les variables sont corrélées entre elles.
+
+## Réalisation d'une ACP
+
+On a vu précédemment qu'il y avait certaines variables qui n'étaient pas très corrélées entres elles, on va donc supprimer quelques variables avec de faible corrélation pour améliorer la pertinence de notre ACP.
+
+Les variables *Imports* et *health* ont de faibles corrélations, nous n'allons pas les inclure dans l'analyse.
+
+### ACP générale sans modification
+
+```{r}
+#| echo: false
+# Suppression des variables peu corrélées
+pays_acp <- pays
+pays_acp$imports <- NULL
+pays_acp$health <- NULL
+pays_acp$inflation <- NULL
+```
+
+
+```{r}
+#| echo: false
+# ACP sur la base pays 
+acp <- PCA(pays_acp, quali.sup = c(1,2))
+```
+Le nuage de point met en évidence une observation très influente qui tire le nuage de point. Le Luxembourg que nous avons déjà détecté lors de l'analyse des outliers. Pour améliorer la pertinence de l'ACP, nous allons le déclarer en individu supplémentaire pour qu'il ne soit pas pris en compte dans l'ACP
+
+### ACP sans Luxembourg 
+
+```{r}
+#| echo: false
+# ACP sans luxembourg 
+acp2 <- PCA(pays_acp, quali.sup = c(1, 2), ind.sup = which(rownames(pays_acp) == "Luxembourg"))
+```
+### Choix du nombre de dimension 
+
+```{r}
+#| echo: false
+#| warning: false
+
+round(acp2$eig,digit=2)
+```
+```{r}
+#| echo: false
+fviz_screeplot(acp2, addlabels = TRUE)
+```
+En suivant la règle du coude, on choisi 2 dimensions, ce qui représente ~80% de la variance expliqué par nos deux dimensions.
+
+### Nuage de point en fonction de la région & niveau de développement
+
+```{r}
+#| echo: false
+
+# Tracer le graphique SANS les noms des individus
+fviz_pca_ind(acp2, habillage = "Région_géographique",addEllipses = TRUE, palette = couleurs)
+```
+
+```{r}
+#| echo: false
+
+# Tracer le graphique SANS les noms des individus
+fviz_pca_ind(acp2, habillage = "Niveau_développement",addEllipses = TRUE, palette = couleurs2, label = "none")
+```
+
+### Description automatique des axes 
+
+```{r}
+#| include: false
+dimdesc(acp2)
+```
+La fonction *dimdesc* du package FactoMineR décrit la première dimension comme une opposition nette entre, d’un côté, les pays riches présentant une haute qualité de vie, et de l’autre, les pays pauvres caractérisés par une mortalité infantile élevée et un taux de fécondité important.
+Du côté des variables illustratives, on retrouve sur le versant positif de l’axe les pays européens et les pays fortement développés, tandis que le versant négatif regroupe principalement les pays africains et les pays faiblement développés. Ces éléments renforcent l’idée que l’axe 1 oppose clairement les pays riches et développés aux pays pauvres et sous‑développés.
+
+
+La deuxième dimension est plus difficile à interpréter et peut sembler contre‑intuitive. Visuellement, le nuage de points montre une opposition très claire sur l’axe 1 entre pays riches et pays pauvres ; pourtant, sur l’axe 2, certains pays riches et certains pays pauvres se retrouvent du même côté.
+On peut néanmoins interpréter cette dimension comme une opposition entre les pays présentant une mortalité infantile et une fécondité élevées, et ceux bénéficiant d’une meilleure qualité de vie. On observe principalement les pays africains sous‑développés du côté positif de l’axe, tandis que les pays émergents d’Amérique se situent plutôt du côté négatif.
+Ce qui peut sembler surprenant, c’est la présence de quelques pays très développés et très riches du côté positif de l’axe 2, ce qui montre que cette dimension ne reflète pas uniquement le niveau de développement mais probablement une combinaison plus complexe de facteurs démographiques et sanitaires.
+
+# Classification 
+
+```{r}
+#| include: false
+res.PCA<-PCA(pays_acp,ncp=2,quali.sup=c(1,2),ind.sup=c(94),graph=FALSE)
+res.HCPC<-HCPC(res.PCA,nb.clust=3,consol=FALSE,graph=FALSE)
+summary(res.HCPC)
+```
+
+```{r}
+#| echo: false
+res.PCA<-PCA(pays_acp,ncp=2,quali.sup=c(1,2),ind.sup=c(94),graph=FALSE)
+res.HCPC<-HCPC(res.PCA,nb.clust=3,consol=FALSE,graph=FALSE)
+#plot.HCPC(res.HCPC,choice='tree',title='Arbre hiérarchique')
+plot.HCPC(res.HCPC,choice='map',draw.tree=FALSE,title='Plan factoriel')
+#plot.HCPC(res.HCPC,choice='3D.map',ind.names=FALSE,centers.plot=FALSE,angle=60,title='Arbre hiérarchique sur le plan factoriel')
+```
+
+Une classification basé sur les deux axes sélectionnés lors de l'ACP a permis de mettre en évidence 3 classes:
+
+La classe 1 est constituée de pays principalement africain et sous-développé, à faible revenu et niveau de vie avec un fort taux de fécondité total et de mortalité infantile.
+
+la classe 2 est constituée de pays principalement d’Amérique qui sont en cours de développement avec un faible PIB/hab et de faible revenu.
+
+La classe 3 quant à elle, est constitué de pays majoritairement Européens, développés et riches.
+
+Il serait pertinent d'aller plus loin dans la classification en analysant la contribution de chaque axes dans la construction des classes ainsi que d'étudier les individus spécifiques et parangons. 
+
+
+\pagebreak
+
+# Conclusion
+
+Les différentes analyses réalisées sur notre jeu de données nous ont permis de mettre en évidence un ensemble d’informations essentielles pour comprendre globalement les inégalités qui existent entre les pays du monde.
+
+Dans un premier temps, les analyses préliminaires (univariée et bivariée) ont clairement montré l’ampleur des disparités entre les pays. Elles ont également révélé que ces inégalités varient fortement selon la région géographique : le continent africain apparaît comme le plus touché par les inégalités socio‑économiques, démographiques et sanitaires, tandis que l’Europe présente des indicateurs nettement plus favorables.
+L’ACP, quant à elle, a surtout mis en lumière l’opposition entre les pays développés et les pays sous‑développés, ce qui a eu pour effet de reléguer au second plan les pays en développement et émergents. La classification issue des résultats de l’ACP a permis d’identifier trois groupes distincts :
+- les pays développés, majoritairement européens,
+- les pays en développement, principalement situés sur le continent américain,
+- les pays sous‑développés, largement représentés par les pays africains.
+
+Enfin, il serait pertinent de poursuivre ce travail en intégrant un plus grand nombre d’indicateurs socio‑économiques, démographiques et sanitaires. En effet, la principale limite de notre étude réside dans le nombre restreint de variables disponibles, qui ne permet de saisir qu’une partie des inégalités existantes. L’ajout de nouveaux indicateurs offrirait une vision plus complète et permettrait d’affiner l’analyse des différences et des disparités persistantes entre les pays.
+
+
+
+
+

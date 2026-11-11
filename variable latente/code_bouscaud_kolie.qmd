@@ -1,0 +1,692 @@
+---
+title: "Dossier modélisation sur la base de données Phonème"
+author: "Jules Bouscaud & Patrice Kolié"
+date: today
+lang: fr
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \usepackage{colortbl}
+        \usepackage{xcolor}
+    toc: true
+    toc-title: "Table des matières"
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
+    fig-pos: "H"
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    geometry:
+      - top=2.5cm
+      - bottom=2.5cm
+      - left=2.5cm
+      - right=2.5cm
+    fontsize: 11pt
+    linestretch: 1.5
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: true
+
+---
+\newpage
+
+```{r 1}
+#| include: false
+
+source("VIP.R")
+# Chargement des packages nécessaires
+library(caret)        # Partitionnement stratifié
+library(FactoMineR)   # ACP
+library(factoextra)   # Visualisation ACP / clustering
+library(ggplot2)      # Graphiques
+library(cluster)      # CAH et silhouette
+library(mixOmics)     # PLS-DA
+library(DiscriMiner)  # AFD (desDA, geoDA)        
+library(dplyr)        # Manipulation de données
+library(knitr)
+library(kableExtra)
+
+# Reproductibilité
+set.seed(123)
+
+# Fonction utilitaire pour l'affichage harmonisé des tableaux kable
+kable_conf <- function(tab, caption) {
+  nc <- ncol(tab)
+  kable(tab,
+        caption = caption,
+        align   = c("l", rep("c", nc))) |>
+    kable_styling(
+      bootstrap_options = c("striped", "hover", "condensed", "bordered"),
+      full_width        = FALSE,
+      position          = "center"
+    ) |>
+    row_spec(0, bold = TRUE, color = "white", background = "#3a6ea5")
+}
+```
+
+# Présentation du jeu de données et de l'étude
+
+## Description des données
+
+Les données utilisées dans ce dossier sont issues de l'ouvrage *Elements of Statistical Learning* de Hastie, Tibshirani & Friedman (2009) et portent sur l'analyse de phonèmes. Elles proviennent de la base de données **TIMIT** (*Texas Instruments / Massachusetts Institute of Technology*), une ressource de référence en recherche sur la reconnaissance vocale.
+
+Le projet porte sur la **discrimination de cinq phonèmes** :
+
+-   `sh` — comme dans *"she"*
+-   `dcl` — comme dans *"dark"*
+-   `iy` — voyelle dans *"she"*
+-   `aa` — voyelle dans *"dark"*
+-   `ao` — première voyelle dans *"water"*
+
+À partir de 50 locuteurs, **4 509 trames vocales de 32 ms** ont été sélectionnées (environ 2 exemples de chaque phonème par locuteur). Le jeu de données résultant contient :
+
+-   **4 509 lignes** : une par trame vocale
+-   **256 colonnes** `x.1` à `x.256` : valeurs issues du **log-périodogramme** calculé sur chaque trame
+-   **1 colonne** `g` : phonème prononcé (variable réponse)
+-   **1 colonne** `speaker` : identifiant du locuteur, indiquant également si la trame appartient à l'ensemble d'apprentissage (`train`) ou de test (`test`)
+
+## Objectifs de l'étude
+
+L'analyse se structure en deux grandes parties, une première portant sur l'analyse exploratoire non supervisée notamment en regroupant les trames vocales par similarité sur la base des 256 variables du log-périodogramme, sans utiliser l'information sur les phonèmes, puis caractériser les classes obtenues. Puis une seconde sur l'analyse supervisée afin de discriminer les cinq phonèmes à l'aide d'une Analyse Factorielle Discriminante (AFD) et d'une PLS-DA, comparer leurs performances, et valider les résultats sur l'échantillon test.
+
+Le fil conducteur est l'approche par variables latentes : les 256 dimensions originales sont résumées en un petit nombre de composantes qui capturent l'essentiel de la variabilité ou de la discriminabilité inter-phonèmes.
+
+
+
+
+# Préparation des données pour l'analyse
+```{r 2}
+# Importation de la base de données phoneme.csv 
+phoneme <- read.csv("phoneme.csv")
+```
+
+## Création du jeu d'entraînement et de test
+
+La colonne `speaker` contient la mention `"train"` ou `"test"` selon l'appartenance de chaque trame. On répartit donc l'échantillon en deux sous-échantillons : un d'entraînement contenant toutes les observations avec le mot "train" et un de test contenant toutes les observations avec le mot "test".
+
+```{r 3}
+trainset <- phoneme[grepl("train", phoneme$speaker), ]
+testset  <- phoneme[grepl("test",  phoneme$speaker), ]
+
+# Pour l'échantillon d'entraînement
+X  <- trainset[, 1:256]   # 256 variables du log-périodogramme
+y  <- trainset$g           # variable cible
+
+# Pour l'échantillon test
+Xx <- testset[, 1:256]
+yy <- testset$g
+```
+
+```{r}
+
+cat("Nombre d'observation de l'échantillon d'entraînement :", nrow(trainset), "\n")
+cat("Nombre d'observation de l'échantillon de test :", nrow(testset), "\n")
+cat("Nombre d'observation de l'échantillon de l'échantillon global :", nrow(phoneme), "\n")
+```
+
+En comparant le nombre d'observation des deux sous-échantillons et en les additionnant, on retrouve bien la taille de la population. Ce qui confirme la bonne séparation de notre jeu de données.
+
+\newpage
+
+
+## Répartition des phonèmes entre l'échantillon global et l'échantillon d'entraînement
+
+Avant d'aller plus loin dans les analyses, il faut vérifier que les phonèmes sont correctement répartis dans les différents sous-échantillons. Pour cela, on calcule la fréquence relative de chaque phonème dans la population, puis celle pour chaque sous-échantillon (test et train).
+
+```{r 4}
+# Calcul des fréquences relatives
+freq_global <- prop.table(table(phoneme$g))
+freq_train  <- prop.table(table(trainset$g))
+freq_test   <- prop.table(table(testset$g))
+
+# Construction du dataframe
+tableau_frequence_phoneme <- data.frame(
+  Phonème      = names(freq_global),
+  Global       = round(as.numeric(freq_global) * 100, 2),
+  Entraînement = round(as.numeric(freq_train)  * 100, 2),
+  Test         = round(as.numeric(freq_test)   * 100, 2)
+)
+
+# Affichage du tableau
+kable(tableau_frequence_phoneme,
+      col.names = c("Phonème", "Global (%)", "Entraînement (%)", "Test (%)"),
+      caption   = "Répartition des phonèmes par échantillon",
+      align     = c("l", "c", "c", "c")) |>
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "bordered"),
+    full_width        = FALSE,
+    position          = "center"
+  ) |>
+  row_spec(0, bold = TRUE, color = "white", background = "#3a6ea5")
+```
+
+Les fréquences sont globalement très similaires entre l'échantillon de test, l'échantillon d'entraînement et la population. On a donc des sous-échantillons stratifiés donc représentatifs de la population, ce qui assure la validité future de nos résultats en évitant le plus possible le biais d'entraînement et en permettant une meilleure généralisation.
+
+
+# Analyse exploratoire non supervisée
+
+L'objectif de cette partie est de regrouper les trames vocales sans utiliser l'étiquette phonémique, puis d'évaluer dans quelle mesure les classes obtenues correspondent aux phonèmes réels.
+
+`L'analyse exploratoire non supervisée est faite sur le jeu d'entraînement`
+
+## Analyse en composantes principales
+
+Avec 256 variables, une réduction de dimension est indispensable avant le clustering. On effectue d'abord une Analyse en Composantes Principales (ACP) pour identifier le nombre de dimensions pertinentes afin d'alléger le plus possible les calculs du clustering.
+
+```{r 5}
+# ACP sur le jeu d'entraînement (variables centrées-réduites)
+res_pca <- PCA(trainset,
+               scale.unit = TRUE,
+               graph      = FALSE,
+               ncp        = 30,
+               quali.sup  = c(which(names(trainset) == "g"),
+                              which(names(trainset) == "speaker")))
+
+# Variance expliquée cumulée
+fviz_eig(res_pca, ncp = 30, addlabels = TRUE, barfill = "steelblue", barcolor = "white") +
+  geom_hline(yintercept = 80, linetype = "dashed", color = "red") +
+  labs(title = "Éboulis des valeurs propres — ACP sur le log-périodogramme",
+       x = "Composante principale", y = "% variance expliquée") +
+  theme_bw()
+```
+
+```{r 6}
+# Variance cumulée par composante
+var_cum <- cumsum(res_pca$eig[, 2])
+
+# Nombre de composantes pour atteindre 80% de variance expliquée
+ncomp_80 <- which(var_cum >= 80)[1]
+cat("Nombre de composantes à sélectionner pour atteindre 80% de variance cumulée :", ncomp_80, "\n")
+
+# Extraction des scores sur les ncomp_80 premières composantes
+scores_pca <- res_pca$ind$coord[, 1:ncomp_80]
+```
+On retient 7 dimensions, ce qui représente plus de 80 % de la variance du jeu de données d'entraînement. C'est le bon compromis entre la réduction du nombre de dimensions et la préservation de la variance.
+
+## Classification non supervisée
+
+## Classification (Hierarchical Clustering on Principal Components)
+
+Afin de regrouper les observations en classes homogènes, nous avons recours à une Classification Ascendante Hiérarchique (CAH) appliquée sur les composantes principales issues de l'ACP. Cette approche présente l'avantage de combiner la réduction de dimension et la classification dans un cadre cohérent.
+
+La CAH est réalisée selon la méthode de Ward, qui consiste à minimiser l'inertie intra-classe à chaque fusion de groupes, favorisant ainsi des classes compactes et bien séparées. Les variables qualitatives g (phonème) et speaker (locuteur) sont introduites comme variables supplémentaires : elles n'influencent pas la construction des axes factoriels.
+
+Comme notre jeu de données est constitué de cinq phonèmes,le nombre de cluster a été paramétré à 5. 
+
+```{r 7}
+res.HCPC <- HCPC(res_pca, nb.clust = 5, consol = FALSE, graph = FALSE)
+```
+
+### Dendrogramme et représentation sur le plan factoriel
+
+```{r 8}
+plot.HCPC(res.HCPC, choice = 'tree', title = 'Arbre hiérarchique')
+plot.HCPC(res.HCPC, choice = 'map', draw.tree = FALSE, title = 'Plan factoriel', label ='none')
+```
+
+Visuellement, la CAH a permis de mettre en évidence deux classes vraiment distinctes des autres (le cluster 1 et le cluster 5). Les autres sont légèrement entremêlées.
+
+### Effectif des différents phonèmes dans les classes
+
+```{r 9}
+# Extraction des clusters HCPC
+clusters_hcpc <- res.HCPC$data.clust$clust
+
+# Tableau de contingence
+tab_hcpc <- table(
+  "Classe HCPC" = clusters_hcpc,
+  "Phonème"     = trainset$g
+)
+
+kable_conf(tab_hcpc, "Tableau de contingence : classes HCPC × phonèmes réels") |>
+  column_spec(1, bold = TRUE)
+```
+
+Lorsque l'on regarde les effectifs de chaque phonème dans chaque classe, on remarque tout de suite que la classification ne parvient pas à retrouver la structure phonémique. Elle capte probablement une autre structure sous-jacente liée aux locuteurs.
+
+## Classification avec la méthode des k-means
+
+### Choix du nombre de classes : critère de silhouette
+
+Avant d'appliquer le clustering, on cherche le nombre de classes $k$ optimal. On utilise le critère de silhouette sur k-means (rapide à calculer) pour $k$ allant de 2 à 8.
+
+```{r 10}
+# Calcul de la silhouette moyenne pour k = 2 à 8
+sil_scores <- numeric(7)
+
+for (k in 2:8) {
+  km_tmp        <- kmeans(scores_pca, centers = k, nstart = 25, iter.max = 100)
+  sil_tmp       <- silhouette(km_tmp$cluster, dist(scores_pca))
+  sil_scores[k - 1] <- mean(sil_tmp[, 3])
+}
+
+# Visualisation
+plot(2:8, sil_scores, type = "b", pch = 19, col = "steelblue",
+     xlab = "Nombre de classes k", ylab = "Silhouette moyenne",
+     main = "Choix du nombre de classes — Critère de silhouette")
+abline(v = which.max(sil_scores) + 1, lty = 2, col = "red")
+```
+
+```{r 11}
+k_opt <- which.max(sil_scores) + 1
+cat("Nombre de classes optimal (silhouette) :", k_opt, "\n")
+```
+
+La méthode de la silhouette a permis de déterminer un nombre optimal de classes égal à 3. Cependant, on dispose de 5 phonèmes, donc il devrait y avoir théoriquement 5 classes différentes et distinctes les unes des autres. L'absence de coïncidence entre le nombre optimal de classes et le nombre théorique montre que certains phonèmes se mélangent entre eux, probablement en raison d'une ressemblance acoustique.
+
+### K-means sur les composantes principales
+
+Partons du principe qu'on a 5 classes théoriques. Donc prenons k = 5.
+
+```{r 12}
+# K-means avec k = 5 (nombre de phonèmes connus) 
+k_final    <- 5
+res_kmeans <- kmeans(scores_pca, centers = k_final, nstart = 50, iter.max = 200)
+```
+
+### Visualisation des classes sur le plan factoriel
+
+```{r 14}
+# Plan factoriel coloré par les classes k-means
+df_plot <- data.frame(
+  Dim1    = res_pca$ind$coord[, 1],
+  Dim2    = res_pca$ind$coord[, 2],
+  Classe  = as.factor(res_kmeans$cluster),
+  Phoneme = trainset$g
+)
+
+ggplot(df_plot, aes(x = Dim1, y = Dim2, color = Classe)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  stat_ellipse(level = 0.90, linewidth = 0.8) +
+  labs(title = "Plan factoriel (CP1 × CP2) — Classes k-means",
+       x = "CP1", y = "CP2", color = "Classe k-means") +
+  theme_bw()
+```
+
+Visuellement, on voit clairement qu'il y a deux classes qui se distinguent vraiment (classe 1 & 3) et trois classes qui se chevauchent. La visualisation du plan factorielle nous permet mieux de comprendre pourquoi la méthode de la silhouette n'a gardé que 3 classes optimales. 
+On retrouve globalement le même graphique que pour la méthode HCPC.
+
+```{r 15}
+# Même plan factoriel coloré par le phonème réel
+ggplot(df_plot, aes(x = Dim1, y = Dim2, color = Phoneme)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  stat_ellipse(level = 0.90, linewidth = 0.8) +
+  labs(title = "Plan factoriel (CP1 × CP2) — Phonèmes réels",
+       x = "CP1", y = "CP2", color = "Phonème") +
+  theme_bw()
+```
+
+En regardant le plan factoriel au travers des phonèmes réels : les phonèmes "dcl" correspondant à la classe 1 et "sh" correspondant à la classe 3 sont parfaitement reconnus par la méthode des k-means. Ce qui est moins évident pour les trois autres phonèmes : le k-means n'arrive pas à les distinguer clairement.
+
+## Caractérisation des classes
+
+```{r 16}
+tab_croise <- table(
+  "Classe k-means" = res_kmeans$cluster,
+  "Phonème"        = trainset$g
+)
+
+kable_conf(tab_croise, "Tableau de contingence : classes k-means × phonèmes réels")
+```
+
+La pureté mesure dans quelle mesure chaque classe k-means est dominée par un unique phonème. Une pureté proche de 1 indique que le clustering non supervisé retrouve naturellement la structure phonémique. Une pureté modeste signifie que les frontières acoustiques entre certains phonèmes se chevauchent (phénomène attendu notamment entre `iy` et `sh`, ou entre `aa` et `ao`).
+
+```{r 17}
+# Calcul de la pureté globale du clustering
+# Pureté = somme des effectifs majoritaires / effectif total
+purity <- sum(apply(tab_croise, 1, max)) / sum(tab_croise)
+cat(sprintf("Pureté du clustering k-means : %.3f\n", purity))
+```
+
+On obtient une pureté de 0,80, ce qui indique que le clustering k-means retrouve correctement la structure phonémique pour une majorité des observations, bien que des confusions subsistent notamment entre les phonèmes acoustiquement proches.
+
+Quelle que soit la méthode utilisée, la classification permet de retrouver, à quelques effectifs près, la structure phonémique, surtout pour les phonèmes "iy" et "sh", ce qui est moins le cas pour les autres. Dans les deux cas, on observe un chevauchement des classes et donc un mélange de phonèmes.
+
+# Analyse supervisée (AFD et PLS-DA)
+
+L'objectif est maintenant de discriminer les cinq phonèmes en exploitant explicitement l'étiquette de classe. On compare deux approches :
+
+-   **AFD** (Analyse Factorielle Discriminante) — méthode classique par variables latentes discriminantes
+
+-   **PLS-DA** — régression PLS sur matrice indicatrice, particulièrement adaptée aux données de grande dimension
+
+## Analyse Factorielle Discriminante (AFD)
+
+### Pouvoir discriminant des variables
+
+Avant l'AFD, on évalue le rapport de corrélation de chaque variable avec la variable phonème. Avec 256 variables, on représente ce rapport sous forme de courbe en fonction de la fréquence du log-périodogramme.
+
+```{r 18}
+# ANALYSE FACTORIELLE DISCRIMINANTE 
+res.desDA <- desDA(X, y, covar = "within")  # AFD avec DiscriMiner
+#round(res.desDA$power, 2)   # Rapport de corrélation
+```
+
+```{r 19}
+power <- res.desDA$power
+
+var_discr_06 <- rownames(power)[power[, "cor_ratio"] > 0.60]
+cat("Nombre de variables avec un rapport de corrélation supérieur à 0.8 :", length(var_discr_06), "\n")
+
+
+var_discr_08 <- rownames(power)[power[, "cor_ratio"] > 0.80]
+cat("Nombre de variables avec un rapport de corrélation supérieur à 0.8 :", length(var_discr_08), "\n")
+```
+
+Il y a dans les alentours de 165 variables qui ont un rapport de corrélation supérieur à 0.6, ce qui signifie que plus de 3/5 des fréquences sont discriminantes pour expliquer les différents phonèmes.
+
+Si on augmente le seuil à 0.8, il ne reste que 4 voire 5 fréquences hyper-discriminantes.
+
+\newpage
+
+### Ajustement du modèle AFD
+
+```{r 20}
+# Corrélations entre variables originales et composantes discriminantes
+cat("Corrélations (discor) — 5 premières variables sur les 2 premières composantes. :\n")
+round(res.desDA$discor[1:5, 1:2], 3)
+```
+
+```{r 21}
+# Scores sur les deux premières fonctions discriminantes
+df_afd <- data.frame(
+  F1      = res.desDA$scores[, 1],
+  F2      = res.desDA$scores[, 2],
+  Phoneme = trainset$g
+)
+
+ggplot(df_afd, aes(x = F1, y = F2, color = Phoneme)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  stat_ellipse(level = 0.90, linewidth = 0.9) +
+  labs(title = "Plan discriminant AFD — Jeu d'entraînement",
+       x = "Fonction discriminante 1",
+       y = "Fonction discriminante 2",
+       color = "Phonème") +
+  theme_bw()
+```
+
+L'AFD parvient à discriminer 4 phonèmes sur 5 de manière satisfaisante. On retrouve cependant toujours une confusion entre les phonèmes "aa" et "ao", probablement parce que leurs log-périodogrammes se recoupent à certains moments. L'AFD est donc particulièrement intéressante dans le cadre de ce jeu de données.
+
+### Taux d'erreur en validation croisée (LOO)
+
+```{r 22}
+# geoDA : règle de classement géométrique avec validation croisée LOO
+res_geoDA <- geoDA(X, y, validation = "crossval")
+
+# Taux d'erreur en validation croisée
+cat("Taux d'erreur LOO (AFD) :", round(res_geoDA$error_rate, 4), "\n")
+```
+
+Le taux d'erreur en validation croisée LOO est globalement très bon. En validation croisée LOO, l'AFD classifie correctement 92,4 % des phonèmes, ce qui signifie que pour un son présenté au modèle, celui-ci a environ 9 chances sur 10 d'identifier le phonème correspondant. Ce taux, estimé en validation croisée LOO, constitue une estimation robuste de la performance en généralisation.
+
+### Erreur sur le jeu d'entraînement
+
+```{r 23}
+# Prédiction sur le jeu d'entraînement
+pred_train_afd <- classify(res_geoDA, X)
+tab_train_afd  <- table(y, pred_train_afd$pred_class)
+
+err_train_afd <- 1 - sum(diag(tab_train_afd)) / sum(tab_train_afd)
+cat("Taux d'erreur apprentissage (AFD) :", round(err_train_afd, 4), "\n")
+```
+
+Le taux d'erreur de prédiction est très faible, ce qui est une très bonne chose.
+
+```{r 24}
+kable_conf(tab_train_afd, "Matrice de confusion AFD — Jeu d'entraînement")
+```
+
+Le tableau ci-dessus montre la répartition des phonèmes correctement prédits. On retrouve, comme sur le plan factoriel, une légère confusion entre les phonèmes "aa" et "ao".
+
+\newpage
+
+### Validation sur le jeu test
+
+Regardons maintenant les résultats sur le jeu test pour vérifier le pouvoir de généralisation de notre modèle discriminant.
+
+```{r 25}
+# Prédiction sur le jeu test
+pred_test_afd <- classify(res_geoDA, Xx)
+tab_test_afd  <- table(yy, pred_test_afd$pred_class)
+
+err_test_afd <- 1 - sum(diag(tab_test_afd)) / sum(tab_test_afd)
+cat("Taux d'erreur test (AFD) :", round(err_test_afd, 4), "\n")
+```
+
+```{r}
+kable_conf(tab_test_afd, "Matrice de confusion AFD — Jeu test")
+```
+
+Le taux d'erreur de test est légèrement plus élevé que le taux d'erreur d'entraînement. Cela est en partie dû à un phénomène de surapprentissage malgré la stratification des sous-échantilons. En effet, l'AFD est en quelque sorte paramétrée sur les données du jeu d'entraînement, ce qui signifie qu'elle s'ajuste très bien à ces données mais légèrement moins bien au jeu de test.
+
+L'AFD comporte également quelques limites : la multicolinéarité et la haute dimensionnalité peuvent fragiliser la prédiction. Cependant, l'écart entre les deux taux étant faible (2,6 points de pourcentage), le modèle AFD dispose globalement d'une bonne capacité de généralisation.
+
+
+## Analyse PLS-DA
+
+La PLS-DA (Partial Least Squares Discriminant Analysis) est une extension de la PLS dans le contexte de la discrimination : la variable réponse $Y$ est la matrice des indicatrices des classes. Elle est particulièrement adaptée aux données de grande dimension et colinéaires comme le log-périodogramme.
+
+### Choix du nombre de composantes
+
+```{r 26}
+# Ajustement initial avec 10 composantes
+plsda_init <- mixOmics::plsda(X, y, ncomp = 10)
+```
+
+```{r 27}
+#| cache: true
+# Validation croisée M-fold pour choisir le nombre optimal de composantes
+
+set.seed(123)
+perf_plsda <- perf(
+  plsda_init,
+  validation  = "Mfold",
+  folds       = 5,
+  nrepeat     = 10,
+  progressBar = FALSE,
+  auc         = TRUE
+)
+```
+
+```{r 28}
+# Visualisation du taux d'erreur en fonction du nombre de composantes
+plot(perf_plsda,
+     col             = color.mixo(5:7),
+     sd              = TRUE,
+     legend.position = "horizontal")
+title(main = "Taux d'erreur PLS-DA en validation croisée (5-fold, 10 répétitions)")
+```
+
+Graphiquement, on voit que le nombre de composantes optimal est de 4 : entre la 3ème et la 4ème composante, on observe encore une légère diminution de l'erreur, et à partir de la 4ème on constate une stabilisation et ça peu importe la méthode.
+
+```{r 29}
+# Nombre optimal de composantes (critère centroids distance, BER)
+ncomp_opt <- perf_plsda$choice.ncomp["overall", "centroids.dist"]
+cat("Nombre optimal de composantes PLS-DA :", ncomp_opt, "\n")
+```
+
+Le critère automatique retourne 9 composantes. Par souci de parcimonie et après inspection de la courbe d'erreur, on va retenir pour la suite 6 composantes ce qui correspond à un juste milieu entre le nombre optimal de composante retourné et celui que l'on observe visuellement. 
+
+```{r 30}
+ncomp_opt <- 6
+```
+
+### Ajustement final du modèle PLS-DA
+
+```{r 31}
+# Modèle PLS-DA avec le nombre optimal de composantes
+res_plsda <- mixOmics::plsda(X, y, ncomp = ncomp_opt)
+```
+
+### Représentation des individus
+
+```{r 32}
+# Plan des individus sur les composantes 1 et 2
+mixOmics::plotIndiv(
+  res_plsda,
+  comp          = 1:2,
+  ellipse       = TRUE,
+  ellipse.level = 0.90,
+  legend        = TRUE,
+  title         = "Plan individus PLS-DA — Jeu d'entraînement"
+)
+```
+
+Graphiquement, on retrouve sensiblement le même plan factoriel que lors de l'analyse non supervisée, avec une nette distinction entre les phonèmes "sh" et "dcl" et une confusion entre les trois autres.
+
+### Représentation des variables 
+
+```{r 33}
+# Cercle de corrélation des variables sur les composantes 1 et 2
+mixOmics::plotVar(
+  res_plsda,
+  comp  = 1:2,
+  title = "Cercle de corrélation PLS-DA (comp. 1 × 2)"
+)
+```
+
+Le cercle de corrélation montre les variables du log-périodogramme les mieux projetées sur le plan PLS. Les variables proches du bord du cercle sont bien représentées et fortement corrélées avec les composantes discriminantes. Les variables proches du centre contribuent peu à la discrimination.
+
+Au vu du nombre de variables présentes dans le jeu de données, on ne distingue pas grand chose mis à part que les première variables x.1 jusqu'à x.10 ont une faible corrélation à l'axe 1. 
+
+Si non globalement, les variables sont corrélées pour la plus part négativement à l'axe 2 et à l'axe 1. Visuellement, on le voit bien avec la présence de la grande majorité des variables dans le cadran du bas à gauche. 
+
+### Importance des variables : VIP
+
+```{r 34}
+# Calcul des VIP (Variable Importance in Projection)
+vip_plsda <- vip(res_plsda)
+
+# On retient les VIP sur la dernière composante
+vip_scores <- as.numeric(vip_plsda[, ncomp_opt])
+
+
+# Graphique
+plot(1:256, vip_scores, type = "l", col = "steelblue", lwd = 1.5,
+     xlab = "Indice de fréquence (x.1 à x.256)",
+     ylab = "VIP",
+     main = "VIP des variables du log-périodogramme (PLS-DA)")
+abline(h = 1, col = "red", lty = 2)
+legend("topright", legend = c("VIP", "seuil VIP = 1"),
+       col = c("steelblue", "red"), lty = c(1, 2))
+```
+
+```{r 35}
+# Variables avec VIP > 1 (les plus discriminantes)
+cat("Nombre de variables avec VIP > 1 :", sum(vip_scores > 1), "\n")
+```
+
+Les variables avec un **VIP \> 1** sont conventionnellement considérées comme importantes pour la discrimination. Au total, 77 variables sont discriminantes. Elles correspondent aux plages de fréquence du log-périodogramme les plus informatives pour différencier les phonèmes. Cette sélection automatique est un avantage de la PLS-DA par rapport à l'AFD classique.
+
+\newpage 
+
+### PLS-DA avec sélection de variables (sPLS-DA)
+
+Appliquons maintenant la PLS-DA en ne conservant que les variables discriminantes.
+
+```{r 36}
+# On garde les variables avec VIP > 1
+nb_var_dis <- sum(vip_scores > 1)
+
+# sPLS-DA : PLS-DA parcimonieuse
+res_splsda <- mixOmics::splsda(
+  X, y,
+  ncomp = ncomp_opt,
+  keepX = rep(nb_var_dis, ncomp_opt)  # même sélection sur chaque composante
+)
+
+# Plan individus de la sPLS-DA
+mixOmics::plotIndiv(
+  res_splsda,
+  comp          = 1:2,
+  ellipse       = TRUE,
+  ellipse.level = 0.90,
+  legend        = TRUE,
+  title         = "Plan individus sPLS-DA — Variables sélectionnées (VIP > 1)"
+)
+```
+
+En réalisant une PLS-DA avec uniquement les 77 variables discriminantes, on parvient à mieux distinguer les différents groupes de phonèmes. En particulier, le phonème "iy" se distingue mieux des phonèmes "aa" et "ao". On observe également une amélioration pour ces deux derniers phonèmes, même si la confusion reste présente.
+
+### Courbe ROC et AUC
+
+```{r 37}
+# Calcul de l'AUC pour chaque classe
+auc_plsda <- mixOmics::auroc(res_plsda, roc.comp = ncomp_opt, print = FALSE)
+```
+
+L'AUC (Area Under the Curve) mesure la capacité du modèle à discriminer chaque phonème contre les autres. Une AUC proche de 1 indique une bonne discrimination. Comme attendu, on retrouve une valeur plus faible de l'AUC pour les phonèmes "ao" et "aa". Pour les phonèmes "sh" et "dcl", la valeur de l'AUC est quasiment égale à 1, ce qui confirme la qualité du modèle pour discriminer correctement ces phonèmes.
+
+\newpage
+
+### Erreur sur le jeu d'entraînement
+
+```{r 38}
+# Prédiction sur le jeu d'entraînement avec la règle centroïde
+pred_train_plsda <- predict(res_plsda, X)
+classe_train     <- pred_train_plsda$class$centroids.dist[, ncomp_opt]
+
+tab_train_plsda  <- table(y, classe_train)
+err_train_plsda  <- 1 - sum(diag(tab_train_plsda)) / sum(tab_train_plsda)
+
+cat("Taux d'erreur apprentissage (PLS-DA) :", round(err_train_plsda, 4), "\n")
+```
+
+L'erreur de prédiction sur le jeu d'entraînement est un peu élevé. En effet, elle dépasse les 10% ce qui est moins bien que l'AFD.
+
+```{r 39}
+kable_conf(tab_train_plsda, "Matrice de confusion PLS-DA — Jeu d'entraînement")
+```
+
+Le tableau confirme les observations ressorties par la visualisation de la PLS-DA (77 variables) sur le plan factoriel. 
+Même s'il y a plus d'erreur de prédiction pour les phonèmes "sh" et "dcl" que pour l'AFD. 
+
+### Validation sur le jeu test
+
+```{r 40}
+# Prédiction sur le jeu test
+pred_test_plsda <- predict(res_plsda, Xx)
+classe_test     <- pred_test_plsda$class$centroids.dist[, ncomp_opt]
+
+tab_test_plsda  <- table(yy, classe_test)
+err_test_plsda  <- 1 - sum(diag(tab_test_plsda)) / sum(tab_test_plsda)
+
+cat("Taux d'erreur test (PLS-DA) :", round(err_test_plsda, 4), "\n")
+```
+
+```{r 41}
+kable_conf(tab_test_plsda, "Matrice de confusion PLS-DA — Jeu test")
+```
+
+Assez logiquement, on retrouve une erreur de prédiction qui est légèrement supérieure à celle du jeu d'entraînement. La faible différence de point de pourcentage entre les deux erreurs montre la capacité du modèle à généraliser malgré le fait qu'il ne soit pas excellent. 
+
+## Comparaison AFD vs PLS-DA
+
+```{r 42}
+# Tableau récapitulatif
+bilan <- data.frame(
+  Méthode       = c("AFD", "PLS-DA"),
+  `Err. train`  = round(c(err_train_afd, err_train_plsda), 4),
+  `Err. CV/LOO` = round(c(res_geoDA$error_rate,
+                           perf_plsda$error.rate$overall[ncomp_opt, "centroids.dist"]), 4),
+  `Err. test`   = round(c(err_test_afd, err_test_plsda), 4),
+  check.names   = FALSE
+)
+
+kable_conf(bilan, "Comparaison des taux d'erreur : AFD vs PLS-DA")
+```
+
+Lorsque l'on examine le tableau de comparaison entre l'AFD et la PLS-DA, on constate que la PLS-DA présente un taux d'erreur supérieur à l'AFD, que ce soit en entraînement, en LOO-CV ou en test. Cela démontre que la méthode la plus robuste théoriquement n'est pas nécessairement celle qui est la plus adaptée à un jeu de données donné.
+
+
+# Conclusion
+
+L'analyse de jeu de données **TIMIT**, nous a permis de comprendre la structure cachée des données via diverses méthodes. Ces méthodes de discrimination, nous ont permis de comprendre comment sont discriminés les différents phonèmes pour ensuite mettre en place des système de reconnaissance vocale performant. Concrètement, l'analyse non supervisée via l'ACP et à la classification, a permis de réduire les 256 variables du log-périodogramme à un espace de dimension réduite tout en préservant l'essentiel de la variabilité. Elle a également mis en évidence la structure des données en distinguant plus ou moins correctement les différents phonèmes entre eux. Quelques phonèmes restent toutefois mal classifiés, notamment en raison de leur proximité acoustique (les phonèmes "aa" et "ao").
+
+L'analyse supervisée basée sur la discrimination des variables avec l'AFD et la PLS-DA ont toutes deux démontré une bonne capacité pour discriminer les phonèmes sur le jeu d'entraînement et une bonne capacité de généralisation. L'AFD a obtenu de meilleurs résultats en terme de qualité de prédiction que la PLS-DA, notamment avec un taux d'erreur de prédiction plus faible, ce qui montre que le modèle le plus robuste théoriquement n'est pas nécessairement le plus adapté à notre jeu de données.
+
+Ainsi, la bonne qualité des modèles obtenus et la très bonne capacité de généralisation confirment l'approche par variables latentes pour ce problème de discrimination acoustique.
+
