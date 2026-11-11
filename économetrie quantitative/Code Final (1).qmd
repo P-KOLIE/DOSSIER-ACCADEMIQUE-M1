@@ -1,0 +1,601 @@
+---
+title: "Code FINAL FINAL"
+format: html
+editor: visual
+---
+
+# Importtation des librairies
+
+```{r}
+library(readxl)
+library(MASS)
+library(EnvStats)
+library(outliers)
+library(dplyr)
+library(ggplot2)
+library(lmtest)
+library(car)
+library(leaps)
+library(forcats)
+library(vcd)
+library(reshape2)
+library(modelsummary)
+library(pandoc)
+```
+
+# Nettoyage des données
+
+## Importation des données
+
+```{r}
+base <- read_excel("Econometrie (réponses).xlsx")
+
+```
+
+## Changement des noms des colonnes
+
+```{r}
+names(base) <- c(
+  "horodateur","France","Ville","Famille","Secteur","Entreprise","Stage",
+  "Informations","Moyen_info","Importance","Salaire","Job","Aide_fi","Boursier",
+  "Status","Etu_parents","Age","Genre","Etu_actuel","Diplome","Langues","Permis"
+)
+```
+
+# Visualisation de l'échantillon
+
+```{r}
+table(base$Etu_actuel)
+vecteur_couleur <- c(
+  "Doctorat / Thèse" = "#00A0B0",
+  "Licence 1" = "#CF5C78",
+  "Licence 2" = "#F5DF4D", 
+  "Licence 3" = "#F0EEE9", 
+  "Master 1" = "#FFD0E6",
+  "Master 2" = "#7D4FFE",
+  "Femme" = "#FF9999", 
+  "Homme" = "#66B2FF"
+)
+
+base |>
+  count(Etu_actuel) |>
+  mutate(percentage = n / sum(n) * 100) |>
+  ggplot() +
+  aes(x = "", y = n, fill = Etu_actuel) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = vecteur_couleur) +
+  coord_polar("y") +
+  theme_void() +
+  geom_text(
+    aes(label = paste0(round(percentage, 1), "%")),  
+    position = position_stack(vjust = 0.5)    
+  ) +
+  labs(
+    title = "Niveau d'étude actuel",
+    fill = ""
+  ) +
+  theme(plot.title = element_text(hjust = 0.5)) 
+# Il y a trop peu d'étudiants en Doctorat/Thèse, nous allons les supprimer
+
+base |>
+  count(Genre) |>
+  mutate(percentage = n / sum(n) * 100) |>
+  ggplot() +
+  aes(x = "", y = n, fill = Genre) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = vecteur_couleur) +
+  coord_polar("y") +
+  theme_void() +
+  geom_text(
+    aes(label = paste0(round(percentage, 1), "%")),
+    position = position_stack(vjust = 0.5)
+  ) +
+  labs(
+    title = "Répartition par genre",
+    fill = ""
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Légèrement plus de femmes que d'hommes, mais cela n'a pas d'impact significatif
+
+ggplot(base, aes(x = Age)) +
+  geom_histogram(binwidth = 2, fill = "darkred", color = "darkred") +
+  labs(title = "Distribution de l'age", x = "Age", y = "Nombre") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Potentielles valeurs aberrantes à vérifier
+
+```
+
+## Suppression des valeurs
+
+```{r}
+# Suppression des doctorants
+base <- base |>
+  filter(Etu_actuel != "Doctorat / Thèse")
+```
+
+## Correction des incohérences
+
+```{r}
+
+# Correction de l'incohérence pour les répondants ayant indiqué "ne sais pas" pour la variable Ville
+inco_fr_vi <- base[base$France == "Ne sais pas" & base$Ville != "Ne sais pas", ]
+nrow(inco_fr_vi)
+# 42 incohérences
+base <- base |> 
+  mutate(Ville = ifelse(France == "Ne sais pas", "Ne sais pas", Ville))
+table(base$Ville)
+table(base$France)
+
+# Même principe pour les répondants ayant indiqué "oui" à Information et "ne sais pas" à Secteur
+inco_inf_sec <- base[base$Informations == "Oui" & base$Secteur == "Ne sais pas", ]
+nrow(inco_inf_sec)
+# 8 incohérences
+base <- base |> 
+  mutate(Informations = ifelse(Secteur == "Ne sais pas", "Non", Informations))
+table(base$Informations == "Oui" & base$Secteur == "Ne sais pas")
+table(base$Informations)
+inco_inf_sec <- base[base$Informations == "Oui" & base$Secteur == "Ne sais pas", ]
+nrow(inco_inf_sec)
+
+# De même pour ceux ayant indiqué "aucune" à Langue avec d'autres modalités
+unique(base$Langues)
+base$Langues <- base$Langues |>
+  gsub("Aucune, ", "", x = _) |>
+  gsub(", Aucune", "", x = _)
+
+# Puis pour "non" à Information mais avec des modalités renseignées dans Moyens d'information
+inco_info <- base[base$Informations == "Non" & !is.na(base$Moyen_info) & base$Moyen_info != "", ]
+nrow(inco_info) 
+base$Moyen_info <- ifelse(base$Informations == "Non" & !is.na(base$Moyen_info) & base$Moyen_info != "",
+                          NA,
+                          base$Moyen_info)
+
+```
+
+# Codage des variables
+
+## Variables numériques
+
+```{r}
+base_net <- base
+var_num <- c("Salaire", "Age") 
+base_net[var_num] <- lapply(base[var_num], as.numeric)
+str(base_net[,var_num])
+
+```
+
+## Variables qualitatives
+
+```{r}
+var_quali <- c(
+  "France","Ville","Secteur","Entreprise","Importance","Status","Etu_parents","Etu_actuel","Diplome"
+  )
+var_bin <- c(
+  "Famille","Stage","Informations","Job","Aide_fi","Boursier", "Permis"
+  )
+base_net[var_quali] <- lapply(base[var_quali], as.factor)
+base_net <- base_net |> 
+  mutate(across(all_of(var_bin), ~ ifelse(. == "Oui", 1, 0)))
+
+str(base_net[,var_quali])
+summary(base_net[,var_bin])
+
+# Codage de la variable "Femme"
+base_net$Femme <- ifelse(base_net$Genre == "Femme", 1, 0)
+
+# Codage des variables à plusieurs modalités de manière indépendante
+# Variable "Moyens d'information"
+base_net$Info_Internet <- ifelse(grepl("Internet", base$Moyen_info), 1, 0)
+base_net$Info_Connaissances <- ifelse(grepl("Connaissances travaillant dans ce secteur", base$Moyen_info), 1, 0)
+base_net$Info_Salons <- ifelse(grepl("Salons, conférences ou événements professionnels", base$Moyen_info), 1, 0)
+base_net$Info_Reseaux <- ifelse(grepl("Réseaux sociaux", base$Moyen_info), 1, 0)
+base_net$Info_Autre <- ifelse(grepl("Autre", base$Moyen_info), 1, 0)
+var_info <- c("Info_Internet", "Info_Connaissances", "Info_Salons", "Info_Reseaux", "Info_Autre")
+
+# Variable "Langue"
+base_net$Langue_Anglais <- ifelse(grepl("Anglais", base$Langues), 1, 0)
+base_net$Langue_Espagnol <- ifelse(grepl("Espagnol", base$Langues), 1, 0)
+base_net$Langue_Allemand <- ifelse(grepl("Allemand", base$Langues), 1, 0)
+base_net$Langue_Autre <- ifelse(grepl("Autre", base$Langues), 1, 0)
+base_net$Langue_Aucune <- ifelse(grepl("Aucune", base$Langues), 1, 0)
+var_langue <- c("Langue_Anglais", "Langue_Espagnol", "Langue_Allemand", "Langue_Autre", "Langue_Aucune")
+
+
+# Suppression des variables inutiles
+base_net[c("Langues", "Genre","Moyen_info" )] <- list(NULL, NULL, NULL)
+str(base_net)
+
+```
+
+### Suppression des modalités avec trop peu de répondants ( \< 10)
+
+```{r}
+summary(base_net)
+table(base_net$Etu_parents)
+table(base_net$Diplome)
+
+# Suppression des étudiants souhaitant s'arrêter en licence dans la variable "Diplôme"
+base_net <- base_net |> 
+  filter(Diplome != "Licence (Bac+3)") |> 
+  mutate(Diplome = droplevels(Diplome)) |> 
+  mutate(Master = ifelse(grepl("Master", Diplome), 1, 0)) |> 
+  select(-Diplome)
+
+# Regroupement des modalités avec trop peu de répondants dans "Etu_parents"
+base_net$Etu_parents <- fct_collapse(base_net$Etu_parents,
+                                      "Brevet ou moins" = c("Aucun diplôme", "Brevet ou équivalent"))
+table(base_net$Etu_parents)
+```
+
+## Selection des modalités de référence
+
+```{r}
+levels(base_net$France)
+base_net$France <- relevel(base_net$France, ref = "En France")
+levels(base_net$Ville)
+base_net$Ville <- relevel(base_net$Ville, ref = "Top 5 des grandes aires urbaines : Paris, Lyon, Marseille, Lille, ou Toulouse.")
+levels(base_net$Secteur)
+base_net$Secteur <- relevel(base_net$Secteur, ref = "Banque, Finance et Assurance")
+levels(base_net$Entreprise)
+base_net$Entreprise <- relevel(base_net$Entreprise, ref = "Grande entreprise / multinationale")
+levels(base_net$Importance)
+base_net$Importance <- relevel(base_net$Importance, ref = "Avoir un salaire élevé")
+levels(base_net$Status)
+base_net$Status <- relevel(base_net$Status, ref = "Classe moyenne")
+levels(base_net$Etu_parents)
+base_net$Etu_parents <- relevel(base_net$Etu_parents, ref = "Bac")
+levels(base_net$Etu_actuel)
+base_net$Etu_actuel <- relevel(base_net$Etu_actuel, ref = "Licence 1")
+
+```
+
+# Analyse descriptive
+
+## Statistiques descriptives univariées
+
+### Variables qualitatives
+
+#### Diagramme circulaire
+
+```{r}
+
+# for (vari in var_quali) {
+#   
+#   freq_table <- base_net |>
+#     count(!!sym(vari)) |>
+#     mutate(pourcentage = n / sum(n) * 100)  
+#   
+#   p <- ggplot(freq_table, aes(x = "", y = pourcentage, fill = !!sym(vari))) +
+#     geom_bar(width = 1, stat = "identity") +
+#     coord_polar("y") +
+#     scale_fill_brewer(palette = "Pastel1") +  
+#     labs(title = paste("Diagramme circulaire de", vari)) +
+#     theme_void() +
+#     theme(legend.title = element_blank()) +  
+#     geom_text(aes(label = paste0(round(pourcentage, 1), "%")), 
+#               position = position_stack(vjust = 0.5)) 
+# 
+#   ggsave(
+#     filename = paste0("Diagramme_circulaire_", vari, ".png"), 
+#     plot = p, 
+#     width = 8, height = 6, dpi = 300
+#   )
+# }
+
+```
+
+#### Diagramme barre
+
+```{r}
+# for (vari in var_bin) {
+# 
+#   freq_table <- base_net |>
+#     count(!!sym(vari)) |>
+#     mutate(pourcentage = n / sum(n) * 100)
+# 
+#   p <- ggplot(freq_table, aes(x = factor(!!sym(vari)), y = n, fill = factor(!!sym(vari)))) +
+#     geom_bar(stat = "identity", width = 0.6, color = "white") +
+#     scale_fill_manual(values = c("0" = "#FCFE19", "1" = "#FE277E"), labels = c("Non", "Oui")) +
+#     geom_text(aes(label = paste0(round(pourcentage, 1), "%")), vjust = -0.5, size = 5) +
+#     labs(
+#       title = paste("Distribution - ", vari),
+#       x = "",
+#       y = "Effectif",
+#       fill = ""
+#     ) +
+#     theme_light(base_size = 14) +
+#     theme(
+#       plot.title = element_text(hjust = 0.5, face = "bold"),
+#       legend.position = "top"
+#     )
+# 
+#   ggsave(
+#     filename = paste0("Barplot_", vari, ".png"),
+#     plot = p,
+#     width = 8, height = 8, dpi = 300
+#   )
+# }
+
+```
+
+### Variables quantitatives
+
+#### Statistiques descriptives
+
+```{r}
+summary(base_net$Salaire)
+summary(base_net$Age)
+
+```
+
+#### Histogrammes et boxplots
+
+```{r}
+par(mfrow=c(1,2))
+   hist(base_net$Salaire, xlab = "Salaire", main = " ", col = "#06668C")
+   hist(base_net$Age, xlab = "Age", main = " ", col = "#06668C")
+par(mfrow=c(1,2))
+   boxplot(base_net$Salaire, xlab = "Salaire", main = " ", col = "#47EAD0")
+   boxplot(base_net$Age, xlab = "Age", main = " ", col = "#47EAD0")
+   
+# 5 valeurs potentiellement aberrantes dans "Salaire" et 11 dans "Âge"
+```
+
+##### Verifications des valeurs aberrantes
+
+```{r}
+# Pour la variable "Salaire"
+rosnerTest(base_net$Salaire, k=5, alpha=0.05)
+# Les 5 valeurs sont des outliers, on les retire
+base_net <- base_net[base_net$Salaire < 4000,]
+
+# Pour la variable "Age"
+rosnerTest(base_net$Age, k=11, alpha=0.05)
+# 9 outliers à retirer
+base_net <- base_net[base_net$Age < 31,]
+
+summary(base_net$Salaire)
+summary(base_net$Age)
+```
+
+## Statistiques descriptives bivariées
+
+### Quali - Quali
+
+#### Tableaux de contingence
+```{r}
+
+# for (i in 1:(length(var_quali) - 1)) {
+#   for (j in (i + 1):length(var_quali)) {
+#     cat("\nTableau de contingence pour :", var_quali[i], "et", var_quali[j], "\n")
+#     print(table(base_net[[var_quali[i]]], base_net[[var_quali[j]]]))
+#   }
+# }
+# for (i in 1:(length(var_bin) - 1)) {
+#   for (j in (i + 1):length(var_bin)) {
+#     cat("\nTableau de contingence pour :", var_bin[i], "et", var_bin[j], "\n")
+#     print(table(base_net[[var_bin[i]]], base_net[[var_bin[j]]]))
+#   }
+# }
+```
+
+#### Correlation de Cramers
+
+```{r}
+var_ens = c(var_bin,var_quali)
+var_ens <- var_ens[var_ens %in% colnames(base_net)]
+corr_matrix <- matrix(NA, ncol = length(var_ens), nrow = length(var_ens))
+colnames(corr_matrix) <- var_ens
+rownames(corr_matrix) <- var_ens
+
+for (i in 1:length(var_ens)) {
+  for (j in i:length(var_ens)) { 
+    if (i != j) {
+
+      tab <- table(base_net[[var_ens[i]]], base_net[[var_ens[j]]])
+
+      cramer_v <- assocstats(tab)$cramer
+      corr_matrix[i, j] <- cramer_v
+      corr_matrix[j, i] <- cramer_v  
+    } else {
+
+      corr_matrix[i, j] <- 1
+    }
+  }
+}
+
+correlation_data <- melt(corr_matrix, varnames = c("Variable1", "Variable2"), value.name = "Correlation")
+
+ggplot(correlation_data, aes(Variable1, Variable2, fill = Correlation)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "darkred", na.value = "grey") +
+  labs(title = "Matrice de corrélation - Variables qualitatives - Cramers", fill = "Corrélation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        axis.text.y = element_text(angle = 0, hjust = 1))
+```
+
+### Quanti - Quanti
+
+```{r}
+ggplot(base_net) + 
+   aes(x= Age, y= Salaire)+ 
+   geom_point() + 
+   theme_minimal()
+```
+
+## Quanti - Quali
+
+```{r}
+# dir.create("Violin_Plots", showWarnings = FALSE)  
+# 
+# for (var_quali in var_ens) {
+#   
+#   if (var_quali %in% names(base_net)) {
+#     
+#     data_plot <- base_net %>% filter(!is.na(Salaire), !is.na(!!sym(var_quali)))
+#     
+#     p <- ggplot(data_plot, aes(x = !!sym(var_quali), y = Salaire, fill = !!sym(var_quali))) +
+#       geom_violin(alpha = 0.7) +
+#       stat_summary(fun = median, geom = "point", shape = 23, size = 2, color = "white", fill = "grey") +
+#       labs(title = paste("Violin Plot de Salaire par", var_quali),
+#            x = var_quali, y = "Salaire") +
+#       scale_fill_brewer(palette = "Set3") + 
+#       theme_classic() +
+#       theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#             legend.title = element_blank())
+#     
+#     print(p)
+#     
+#     ggsave(
+#       filename = paste0("Violin_Plots/Violin_Plot_", var_quali, ".png"), 
+#       plot = p, width = 8, height = 6
+#     )
+#   }
+# }
+```
+
+# Estimations des modèles
+
+## Modèle de base
+
+```{r}
+str(base_net)
+var_modele <- c(
+  "Ville","Famille","Secteur","Entreprise","Stage","Informations","Importance",
+  "Job","Status","Etu_parents","Age","Etu_actuel","Permis","Femme","Langue_Anglais","Langue_Espagnol",
+  "Langue_Autre","Langue_Aucune","Master"
+  )
+formule <- as.formula(
+  paste("Salaire ~", paste(var_modele, collapse = " + "))
+)
+modele_ini <- lm(formule, data = base_net)
+summary(modele_ini)
+```
+
+## Step
+
+### Step Forward
+
+```{r}
+modele0 <- lm(Salaire ~ 1, data = base_net)
+step(modele0, scope=list(lower=modele0, upper=modele_ini), data=base_net, direction="forward")
+# lm(formula = Salaire ~ Secteur + Ville + Importance, data = base_net)
+# AIC = 2075.6
+```
+
+### Step Backward
+
+```{r}
+step(modele_ini, data=base_net, direction="backward")
+# lm(formula = Salaire ~ Secteur + Status + Langue_Autre, data = base_net)
+# AIC = 2073.8
+```
+
+### Step Both
+
+```{r}
+step(modele0, scope = list(upper = modele_ini),data = base_net, direction = "both")
+# lm(formula = Salaire ~ Secteur + Ville + Importance, data = base_net)
+# AIC = 2075.6
+```
+
+### Estimation du modele définis
+
+```{r}
+modele_step <- lm(Salaire ~ Secteur + Status + Langue_Autre, data = base_net)
+summary(modele_step)
+```
+
+## Test d'un modele Log
+
+```{r}
+modele_log <- lm(log(Salaire) ~ Secteur + Status + Langue_Autre, data = base_net)
+summary(modele_log)
+```
+
+
+#### Visualisation du modèle
+```{r}
+modelsummary(
+  modele_log,
+  stars = TRUE,
+  fmt = 2,
+  output = "modele_log.docx",
+  title = "Résultats du MCO - modèle_log",
+)
+
+```
+
+
+# Test du modèle final
+
+## Normalité des résidus
+
+```{r}
+plot(modele_log)
+residus_log<-residuals(modele_log)
+shapiro.test(residus_log)
+
+# p-value = 0.2697 > 5 % => pas de preuve que les résidus ne suivent pas une loi normale
+
+```
+
+## Forme fonctionnelle
+
+```{r}
+reset(modele_log)
+
+# p-value = 0.6051 > 5 % => forme fonctionnelle est acceptée
+```
+
+## Absence de multicollinéarité
+
+```{r}
+vif(modele_log)
+
+# Pas de multicolinéarité
+```
+
+## Homoscédasticité des erreurs
+
+```{r}
+bptest(modele_log)
+# p-value = 0.7882 > 5% => on applique le MCO
+```
+
+## Distance de Cooks
+
+```{r}
+plot(cooks.distance(modele_log),type="h")
+summary(modele_log)
+```
+
+# Interprétation des résultats en %
+```{r}
+(exp(coef(modele_log)) - 1) * 100
+```
+
+# Prévisions du modèle
+```{r}
+base_net$Salaire_pred <- exp(predict(modele_log, newdata = base_net))
+```
+
+```{r}
+ggplot(data = base_net, aes(x = Salaire_pred, y = Salaire)) +
+  geom_point(color = "black", size = 0.9) +                
+  geom_abline(slope = 1, intercept = 0, color = "red") +  
+  labs(x = "Valeurs prédites", y = "Valeurs réelles", title = "Salaire réel vs prédit") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+rmse <- sqrt(mean((base_net$Salaire - base_net$Salaire_pred)^2))
+rmse
+# En moyenne, le modèle s’écarte d’environ 320 € du salaire espéré
+```
+
