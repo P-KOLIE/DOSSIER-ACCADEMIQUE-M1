@@ -10,7 +10,7 @@ ou en trinôme (co-auteurs indiqués dans le tableau).
 | `Analyse descriptive` | Analyse des inégalités entre les pays du monde à partir d'indicateurs socio-économiques, démographiques et sanitaires : statistiques univariées et bivariées (tests de Shapiro-Wilk, ANOVA, Khi-2, corrélations de Spearman), AFC, ACP et classification | Jules Bouscaud |
 | `Mémoire` | Mémoire de recherche : modélisation des choix de fin de vie des vêtements (jeter, donner, revendre) par logit multinomial général | Individuel |
 | `R avancé _creation de package` | Création d'un package R dans le cadre du cours de R avancé | Individuel |
-| `R shiny _ création app` | Prototype d'application Shiny autour de compétitions de football, avec gestion des amis, portefeuille et pronostics amicaux | Amélie Pirès |
+| `R shiny _ création app` | Prototype d'application Shiny autour de compétitions de football, avec gestion des amis, portefeuille et pronostics amicaux | Amélie Pires |
 | `projet bio_stats` | Analyse socio-économique et sanitaire des pays du monde, centrée sur le traitement des données : détection des valeurs manquantes et comparaison de plusieurs méthodes d'imputation (données externes, MCO, moyenne, ACP, imputation multiple MICE) | Diane Anato |
 | `projet power BI` | Tableau de bord interactif de suivi des ventes (données Contoso) : pages Accueil, Boutiques, Produits et Ventes, avec segments croisés, mesures DAX et comparaison du CA à l'année précédente | Diane Anato, Néné Gallé Ly |
 | `protefeuille actif financier` | Analyse de portefeuille à partir des rendements des 49 portefeuilles industriels (Fama-French) et des facteurs de risque du modèle à 5 facteurs | Individuel |
