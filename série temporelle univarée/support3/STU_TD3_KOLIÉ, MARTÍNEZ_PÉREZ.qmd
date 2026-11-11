@@ -1,0 +1,755 @@
+---
+title: "STU_TD3_PATRICE KOLIÉ,MARTÍNEZ PÉREZ"
+author: "M1 ECAP — Binôme : Ainara Martínez Pérez & Patrice KOLIÉ"
+format: 
+  html:
+    html-math-method: mathjax
+    title-block-banner: false
+    embed-resources: true
+---
+La fonction QLIKE est définie par : $\text{QLIKE} = \ln(\hat{Y}_{t+1}) + \frac{Y_{t+1}}{\hat{Y}_{t+1}}$
+
+
+```{=html}
+<style>
+.cover{
+  height: 92vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+.cover .t1{font-size:44px; font-weight:600; margin-bottom:18px;}
+.cover .t2{font-size:22px; margin-bottom:34px;}
+.cover .t3{font-size:30px; font-weight:700; margin-bottom:18px;}
+.cover .t4{font-size:20px; font-style:italic; margin-bottom:6px;}
+.cover .t5{font-size:20px; margin-bottom:34px;}
+.cover .t6{font-size:22px; margin-bottom:0px;}
+.cover .t7{font-size:18px; margin-top:70px;}
+</style>
+```
+
+:::::::::: cover
+::: t1
+Séries temporelles univariées
+:::
+
+::: t2
+M1 ECAP — TD2 — Année 2025/2026
+:::
+
+::: t3
+Support 3: SAISONNALITÉ
+:::
+
+::: t4
+Responsable d’enseignement : Benoit SÉVI
+:::
+
+::: t5
+benoit.sevi\@univ-nantes.fr
+:::
+
+::: t6
+Patrice KOLIÉ, Ainara MARTÍNEZ PÉREZ
+:::
+
+::: t7
+Février 20, 2026
+:::
+::::::::::
+
+::: {style="page-break-after: always;"}
+:::
+
+# Développements et simulation de modèles saisonniers
+
+## 1.  
+
+$$
+    Y_t=\frac{(1+\theta_1L+\theta_2L^2)(1+\Theta_1L^4)}{(1-\phi_1L)(1-\Phi_1L^4)},\varepsilon_t
+$$
+
+Numérateur :
+
+$$
+(1+\theta_1L+\theta_2L^2)(1+\Theta_1L^4)
+=1+\theta_1L+\theta_2L^2+\Theta_1L^4+\theta_1\Theta_1L^5+\theta_2\Theta_1L^6
+$$
+
+Dénominateur :
+
+$$
+(1-\phi_1L)(1-\Phi_1L^4)
+=1-\phi_1L-\Phi_1L^4+\phi_1\Phi_1L^5
+$$
+
+Résultat:
+
+
+$$
+Y_t=\frac{1+\theta_1L+\theta_2L^2+\Theta_1L^4+\theta_1\Theta_1L^5+\theta_2\Theta_1L^6}{1-\phi_1L-\Phi_1L^4+\phi_1\Phi_1L^5}
+$$
+
+### Nombre de coefficients à estimer
+
+On part de la forme factorisée du modèle. Un coefficient est non nul s’il apparaît dans un facteur présent.
+Inversement, les coefficients associés à des retards absents dans ces facteurs sont nuls (ils valent 0 par hypothèse du modèle)
+On estime les paramètres “non nuls” du modèle :
+
+-   AR : ϕ_1, Φ_1-> 2
+-   MA : θ_1,θ_2, Θ_1) -> 3
+
+Donc **5 coefficients** 
+On a une dynamique “courte” (retards 1 et 2) + une dynamique saisonnière qui revient tous les 4 pas de temps (retard 4).
+
+AR-> 1
+MA-> (1, 2)       
+Saison-> (1,1)_4
+
+Non-saisonnier : MA(2) (car 1+𝜃_1𝐿+𝜃_2𝐿^2) et AR(1) (car 1−𝜙_1)
+
+Saisonnier (période 𝑠=4) : MA(1) (car 1+Θ_1𝐿^4) et AR(1) (car 1−Φ_1𝐿^4)
+
+Donc :
+
+SARMA(1,2)(1,1)_4
+
+après développment 
+ARMA(4,4)
+
+## 2.
+
+$$
+Y_t=\frac{(1+\theta_1L)(1+\Theta_1L^6)}{(1-\phi_1L)(1-\Phi_1L^6)},\varepsilon_t
+$$
+
+Numérateur :
+
+$$
+(1+\theta_1L)(1+\Theta_1L^6)
+=1+\theta_1L+\Theta_1L^6+\theta_1\Theta_1L^7
+$$
+
+Dénominateur :
+
+$$
+(1-\phi_1L)(1-\Phi_1L^6)
+=1-\phi_1L-\Phi_1L^6+\phi_1\Phi_1L^7
+$$
+
+résultat:
+
+$$
+Y_t=\frac{1+\theta_1L+\Theta_1L^6+\theta_1\Theta_1L^7}{1-\phi_1L-\Phi_1L^6+\phi_1\Phi_1L^7}
+$$
+
+### Nombre de coefficients à estimer
+
+-   AR : ϕ_1, Φ_1-> 2
+-   MA : θ_1, Θ_1) -> 2
+
+Donc **4 coefficients** (souvent + constante).
+
+ AR 1,6” = dépendance au dernier mois ((t-1)) + dépendance au même mois du cycle précédent ((t-6)).
+
+
+AR-> 1
+MA-> 1      
+Saison-> (1,1)_6
+
+SARMA-> (1,1)(1,1)_6
+
+
+Non-saisonnier : AR(1) et MA(1)
+
+Saisonnier période (s=6) : AR(1) et MA(1)
+
+SARMA-> (1,1)(1,1)_6
+
+après développement 
+ARMA (6, 6)
+
+## 3
+
+$$
+Y_t=\frac{1+\Theta_1L^12{1-\phi_1L-\phi_2L^2},\epsilon_t
+$$
+
+Nombre de coefficients à estimer
+
+AR (non-saisonnier) : $\phi_1,\phi_2$ $\rightarrow$ 2
+
+MA saisonnier : $\Theta_1$ $\rightarrow$ 1
+
+Donc 3 coefficients.
+
+Type de modèle 
+
+Non-saisonnier : AR(2), MA(0)
+
+Saisonnier période $s=12$ : AR(0), MA(1)
+
+Donc :
+
+SARMA (2,0)(0,1)_12
+
+après développement 
+ARMA (2, 12)
+
+## 1 Simulation de 500 observations par modèle (coeffs arbitraires)
+
+Importations des packages
+```{r}
+library(forecast)
+```
+
+
+MODÈLE 1 
+
+```{r}
+
+set.seed(123)
+n <- 500
+
+# Coefficients (au choix, "petits" pour rester stable)
+phi1   <- 0.8
+Phi1   <- 0.750
+theta1 <- 0.950
+theta2 <- -0.60
+Theta1 <- 0.40
+
+# Développement multiplicatif -> AR et MA "équivalents" en lags classiques
+# (1-phi1L)(1-Phi1L^4) = 1 - phi1L - Phi1L^4 + phi1Phi1L^5
+ar <- c(phi1, 0, 0, Phi1, -phi1*Phi1)
+
+# (1+theta1L+theta2L^2)(1+Theta1L^4)
+# = 1 + theta1L + theta2L^2 + Theta1L^4 + theta1Theta1L^5 + theta2Theta1L^6
+ma <- c(theta1, theta2, 0, Theta1, theta1*Theta1, theta2*Theta1) #négligéables 
+
+y <- arima.sim(n = n, model = list(ar = ar, ma = ma))
+y_ts <- ts(y, frequency = 4)  # période saisonnière s=4
+
+```
+
+#### Répresentation graphique 
+
+```{r}
+plot(y_ts, type = "l",
+     main = "Série simulée (modèle 1, s=4)",
+     ylab = expression(Y[t]), xlab = "t")
+abline(h = 0, lty = 2)
+
+```
+
+### Autocorrélogrammes (ACF/PACF)
+```{r}
+par(mfrow = c(1,2))
+acf(y_ts,  main = "ACF (série simulée)")
+pacf(y_ts, main = "PACF (série simulée)")
+par(mfrow = c(1,1))
+
+```
+On observe une ACF très élevée aux premiers retards et qui décroît lentement : ça traduit une forte persistance de la série, ce qui est logique avec un 𝜙1=0,8 (composante AR importante). On voit aussi que des corrélations restent significatives sur plusieurs lags, ce qui est compatible avec la combinaison AR + MA (ici 𝜃_1 très grand et 𝜃_2 négatif), qui “étale” la dépendance dans le temps.
+
+Côté PACF, on a un gros pic au retard 1 (signature d’un AR(1) dominant), puis la plupart des autres retards deviennent plus faibles : ça confirme que la dynamique principale passe par 𝑌_{t−1}. Enfin, comme on impose une saisonnalité  s=4 via Φ_1(AR saisonnier) et Θ_1 (MA saisonnier), on s’attend aussi à voir des effets autour des retards multiples de 4 (même si leur visibilité dépend de l’échantillon simulé et de l’interaction avec la partie MA).
+
+## 2. Estimation du modèle simulé + diagnostics
+
+```{r}
+# Modèle "vrai" (structure multiplicative saisonnière) :
+# (1 - phi1 L)(1 - Phi1 L^4) Yt = (1 + theta1 L + theta2 L^2)(1 + Theta1 L^4) 
+
+fit_true <- Arima(
+  y_ts,
+  order    = c(1, 0, 2),                 # p=1, d=0, q=2
+  seasonal = list(order = c(1, 0, 1),     # P=1, D=0, Q=1
+                  period = 4),
+  include.mean = FALSE                   # série simulée centrée (moyenne ~0)
+)
+
+summary(fit_true)
+
+```
+Sur l’estimation ARIMA(1,0,2)(1,0,1)[4], on retrouve bien une dynamique à court terme (lag 1) et surtout une dynamique saisonnière (période 4), cohérente avec la construction du modèle.
+
+Côté significativité (on regarde grossièrement 𝑡≈𝛽^/se) :
+
+AR1 = 0.824 (se 0.064) ⇒𝑡≈ 12.8: très significatif ⇒ forte persistance au lag 1.
+
+MA1 = 0.187 (se 0.091) ⇒t≈2.05 : significatif / limite (≈ 5%).
+
+MA2 = -0.397 (se 0.080) ⇒t≈−5.0 : très significatif ⇒ correction nette au lag 2.
+
+SAR1 = 0.720 (se 0.040) ⇒t≈18.2 et SMA1 = 0.362 (se 0.047) ⇒t≈7.8 : très significatifs 
+⇒ l’effet saisonnier à s=4 est très bien identifié.
+
+Globalement, le modèle semble surtout “porté” par la composante saisonnière (retard 4) + une forte composante AR(1) non-saisonnière. Les critères AIC/BIC (AIC =1728.79, BIC =1754.07) servent ensuite à comparer avec d’autres spécifications : plus petit = meilleur compromis ajustement / complexité.
+
+```{r}
+# Modèle alternatif : ARMA(4,4) non-saisonnier
+fit_arma44 <- Arima(
+  y_ts,
+  order = c(4, 0, 4),
+  include.mean = FALSE
+)
+
+summary(fit_arma44)
+
+```
+Sur l’estimation ARIMA(4,0,4) (moyenne nulle), on obtient des coefficients AR et MA globalement bien estimés : les écarts-types sont faibles, donc la plupart des paramètres sont statistiquement significatifs (en gros, |coef| ≫ 2×s.e.). Côté AR, on voit une dynamique riche avec alternance de signes (ex. AR2 négatif), ce qui traduit une dépendance qui se propage sur plusieurs retards plutôt qu’un simple AR(1). Côté MA, plusieurs termes sont aussi significatifs (notamment MA4), ce qui confirme que des chocs passés continuent d’influencer la série pendant quelques périodes. Enfin, les critères AIC/BIC (AIC ≈ 1761.8 ; BIC ≈ 1799.7) servent surtout à comparer ce modèle au SARMA “vrai” : ici l’ARMA(4,4) est une approximation non-saisonnière, souvent moins parcimonieuse et pas forcément meilleure si la vraie structure est saisonnière.
+
+Comparaison 
+```{r}
+AIC(fit_true, fit_arma44)
+BIC(fit_true, fit_arma44)
+```
+Les critères d’information confirment que le modèle saisonnier fit_true est préférable : il affiche des AIC/BIC plus faibles que l’ARMA(4,4). Comme le BIC pénalise davantage la complexité, l’écart de BIC montre que l’ARMA(4,4) sur-paramétrise sans gain suffisant. On retient donc le SARMA(1,2)(1,1)_4, cohérent avec le processus simulé.
+
+```{r}
+checkresiduals(fit_true)
+checkresiduals(fit_arma44)
+
+```
+SARMA(1,2)(1,1)_4 (ARIMA(1,0,2)(1,0,1)[4])
+
+Les résidus oscillent bien autour de 0, sans tendance visible, donc le modèle capte l’essentiel de la dynamique moyenne. Sur l’ACF des résidus, la majorité des barres reste dans les bandes de confiance : il ne reste pas (ou très peu) d’autocorrélation, ce qui va dans le sens de résidus proches d’un bruit blanc (donc modèle plutôt correct). L’histogramme est globalement “en cloche” et centré, ce qui suggère une normalité approximative, même si on peut garder en tête qu’il peut rester des queues un peu épaisses (classique en séries simulées/financières). Globalement, les diagnostics confirment que SARMA(1,2)(1,1)_4 laisse des résidus assez propres.
+
+ARMA(4,4) (ARIMA(4,0,4))
+
+Visuellement, les résidus sont aussi centrés autour de 0, mais l’ACF des résidus montre encore quelques pics qui dépassent les bandes (notamment à certains lags), donc il reste un peu de dépendance non expliquée. L’histogramme reste globalement proche d’une forme normale, mais ce n’est pas ça qui “sauve” le modèle : le point clé, c’est que les résidus ne sont pas aussi blancs que pour le SARMA. En plus, comme on l’a vu avec AIC/BIC, l’ARMA(4,4) est plus complexe et moins bien pénalisé : il n’exploite pas explicitement la saisonnalité s=4, donc il laisse plus facilement des structures dans les résidus.
+
+les diagnostics résiduels et AIC/BIC favorisent clairement le SARMA(1,2)(1,1)_4 plutôt que l’ARMA(4,4).
+
+##  3. Autre modèle : ARMA "équivalent" non-saisonnier (approximation)
+
+Idée : capturer la saisonnalité s=4 via des lags 4,5,... dans un ARMA classique
+```{r}
+
+fit_arma56 <- Arima(
+  y_ts,
+  order = c(5, 0, 6),
+  include.mean = FALSE
+)
+
+summary(fit_arma56)
+
+```
+
+Comparaison et résidus
+```{r}
+AIC(fit_true, fit_arma44, fit_arma56)
+BIC(fit_true, fit_arma44, fit_arma56)
+```
+
+```{r}
+checkresiduals(fit_arma56)
+```
+
+En plus du modèle « vrai » saisonnier SARMA(1,2)(1,1)_4 (fit_true), on peut proposer un modèle non saisonnier plus flexible, par exemple un ARMA(5,6) (fit_arma56). L’idée est simple : comme l’ARMA(5,6) contient davantage de retards AR et MA, il peut approximer la structure saisonnière en “répartissant” la dépendance sur plusieurs lags, même s’il ne modélise pas explicitement la période s=4.
+
+Dans nos résultats, le diagnostic des résidus de l’ARMA(5,6) est globalement satisfaisant : les résidus sont centrés, l’ACF des résidus reste majoritairement dans les bandes, et l’histogramme est assez proche d’une forme en cloche, ce qui indique des résidus proches d’un bruit blanc. En revanche, quand on compare les critères d’information, l’ARMA(5,6) reste moins parcimonieux (plus de paramètres) et il est pénalisé par le BIC : on observe que 
+AIC(ARMA(5,6)) et BIC(ARMA(5,6)) sont plus élevés que ceux du modèle saisonnier fit_true.
+
+En conclusion oui, on peut obtenir des résidus “propres” avec un autre modèle (ex. ARMA(5,6)), mais le modèle saisonnier reste le meilleur choix ici car il capture directement la saisonnalité s=4 avec moins de paramètres et un meilleur compromis ajustement/complexité (AIC/BIC plus faibles).
+
+
+MODÈLE 2
+```{r}
+# Développement -> AR et MA "équivalents" en lags classiques
+# Dénominateur : (1-φ1L)(1-Φ1L^6) = 1 - φ1L - Φ1L^6 + φ1Φ1L^7
+ar2 <- c(phi1, 0, 0, 0, 0, Phi1, -phi1*Phi1)
+
+# Numérateur : (1+θ1L)(1+Θ1L^6) = 1 + θ1L + Θ1L^6 + θ1Θ1L^7
+ma2 <- c(theta1, 0, 0, 0, 0, Theta1, theta1*Theta1)
+
+# Simulation
+y2 <- arima.sim(n = n, model = list(ar = ar2, ma = ma2))
+y2_ts <- ts(y2, frequency = 6)  # période saisonnière s=6
+```
+
+#### Répresentation graphique  
+
+```{r}
+plot(y2_ts, type = "l",
+     main = "Série simulée (modèle 2, s = 6)",
+     ylab = expression(Y[t]), xlab = "t")
+abline(h = 0, lty = 2)
+
+```
+### Autocorrélogrammes (ACF/PACF)
+
+```{r}
+par(mfrow = c(1,2))
+acf(y2_ts,  main = "ACF (série simulée)")
+pacf(y2_ts, main = "PACF (série simulée)")
+par(mfrow = c(1,1))
+
+```
+On voit sur l’ACF des corrélations fortes aux premiers retards qui décroissent progressivement : la série est donc très persistante, ce qui est cohérent avec une dynamique AR/MA où les effets se transmettent sur plusieurs périodes. L’ACF restant positive sur pas mal de lags suggère qu’on n’est clairement pas sur un bruit blanc et qu’il y a une mémoire dans la série.
+
+Côté PACF, on observe surtout quelques pics significatifs au tout début (retards 1–2), puis les barres rentrent globalement dans les bandes : ça fait penser à une composante AR dominante à court terme, et que le reste de la dépendance est plutôt “diffuse” (compatible avec une partie MA). Enfin, comme le modèle est annoncé avec une saisonnalité s = 6, on s’attendrait à voir des effets vers les retards 6, 12, … ; sur le graphique l’axe des lags est très court (jusqu’à 4), donc on ne peut pas vraiment confirmer/infirmer la saisonnalité juste avec cette vue (il faudraient plus de retards).
+
+## 2. Estimation du modèle simulé + diagnostics
+
+```{r}
+
+# Modèle "vrai" (structure multiplicative saisonnière) :
+# (1 - phi1 L)(1 - Phi1 L^6) Yt = (1 + theta1 L)(1 + Theta1 L^6) εt
+
+fit_true2 <- Arima(
+  y2_ts,
+  order    = c(1, 0, 1),                  # p=1, d=0, q=1
+  seasonal = list(order = c(1, 0, 1),      # P=1, D=0, Q=1
+                  period = 6),
+  include.mean = FALSE                    # série simulée centrée (moyenne ~0)
+)
+
+summary(fit_true2)
+```
+On estime un SARMA(1,1)(1,1)_6 (ARIMA(1,0,1)(1,0,1)[6]), cohérent avec une dépendance court terme (lag 1) + saisonnière (lag 6). Les quatre coefficients sont nettement significatifs (ils sont très grands devant leurs écarts-types) : AR1 ≈ 0.79 indique une forte persistance d’une période à l’autre, MA1 ≈ 0.94 montre que les chocs récents se répercutent fortement, et la partie saisonnière est bien captée avec SAR1 ≈ 0.72 et SMA1 ≈ 0.47, ce qui confirme un effet régulier tous les 6 pas de temps. Enfin,  l’ACF1 proche de 0 suggère que les résidus ne gardent pas de dépendance immédiate marquée.
+
+```{r}
+# Modèle alternatif : ARMA(6,6) non-saisonnier
+# (idée : approximer la saisonnalité en mettant beaucoup de lags)
+
+fit_arma66 <- Arima(
+  y2_ts,
+  order = c(6, 0, 6),
+  include.mean = FALSE
+)
+
+summary(fit_arma66)
+```
+Sur l’estimation ARIMA(6,0,6), on voit que le modèle devient très “chargé” : on ajoute beaucoup de retards pour essayer de reproduire la dynamique (y compris ce qui ressemble à une structure saisonnière), mais cela se paie en complexité. Plusieurs coefficients sont très bien identifiés (écarts-types faibles), mais on remarque aussi au moins un terme MA6 avec une estimation assez incertaine (coef ≈ 0.49 pour s.e. ≈ 0.47), ce qui suggère qu’on commence à empiler des paramètres dont l’apport marginal est limité.
+Côté critères, même si l’ajustement reste correct, AIC ≈ 1482 et surtout BIC ≈ 1537 restent plus élevés que le modèle saisonnier plus parcimonieux : le BIC pénalise fortement ces 12 paramètres. Donc l’ARMA(6,6) peut “imiter” la dépendance, mais il n’est pas le meilleur compromis : on préfère généralement un modèle qui capture directement la structure (ici la saisonnalité) avec moins de paramètres
+
+```{r}
+AIC(fit_true2, fit_arma66)
+BIC(fit_true2, fit_arma66)
+```
+
+Le BIC et le AIC confirment la choix du premier modèle.
+
+```{r}
+checkresiduals(fit_true2)
+checkresiduals(fit_arma66)
+```
+
+SARMA(1,1)(1,1)_6 : les résidus restent bien centrés autour de 0. L’ACF des résidus est globalement dans les bandes → il reste peu d’autocorrélation, donc on est proche d’un bruit blanc. L’histogramme est assez “en cloche”, donc rien de choquant côté distribution.
+
+ARMA(6,6) : les résidus sont aussi centrés, mais comme le modèle est plus chargé, l’intérêt principal est la comparaison : même si les résidus ont l’air corrects, les critères d’information indiquent qu’on n’obtient pas un gain suffisant pour justifier autant de paramètres. Au final, le modèle saisonnier reste le meilleur compromis “propre + simple”.
+
+##  3. Autre modèle : ARMA "équivalent" 
+Dans le développement complet, on a aussi un terme au lag 7 (produit des composantes non-saisonnière et saisonnière).
+Un ARMA(7,7) peut parfois mieux absorber ça qu’un ARMA(6,6).
+
+```{r}
+fit_arma77 <- Arima(
+  y2_ts,
+  order = c(7, 0, 7),
+  include.mean = FALSE
+)
+
+summary(fit_arma77)
+```
+
+Comparaison et résidus
+
+```{r}
+AIC(fit_true2, fit_arma66, fit_arma77)
+BIC(fit_true2, fit_arma66, fit_arma77)
+```
+```{r}
+checkresiduals(fit_arma77)
+```
+Oui : en plus du modèle saisonnier  fit_true2, on peut tester un ARMA non saisonnier plus riche, par exemple ARMA(6,6) ou ARMA(7,7), qui “imitent” indirectement la saisonnalité en utilisant beaucoup de retards.
+Dans les diagnostics (ex. ARMA(7,7)), les résidus semblent globalement corrects : ils sont centrés autour de 0 et l’ACF des résidus reste majoritairement dans les bandes, donc on se rapproche d’un bruit blanc.
+En revanche, ces modèles sont beaucoup moins parcimonieux (beaucoup plus de paramètres), et ça se voit dans les critères : 
+AIC et surtout BIC sont plus élevés que pour fit_true2 (par ex. BIC ≈ 1548.9 pour ARMA(7,7) contre ≈ 1490.2 pour fit_true2).
+Conclusion : on peut obtenir des résidus “propres” avec un ARMA(6,6)/(7,7), mais le modèle saisonnier fit_true2 reste le meilleur compromis car il capture la structure avec moins de paramètres et de meilleurs AIC/BIC.
+
+Modèle 3
+```{r}
+# Modèle 3 : Yt = (1 + Theta1 L^12) / (1 - phi1 L - phi2 L^2) * εt
+# => (1 - phi1 L - phi2 L^2) Yt = (1 + Theta1 L^12) εt
+
+# On fixe phi2 (choix arbitraire mais stable)
+phi2 <- -0.25
+
+# AR "classique" : AR(2)
+ar3 <- c(phi1, phi2)
+
+# MA "classique" : uniquement un terme au lag 12 -> on met des zéros jusqu’à 12
+ma3 <- c(rep(0, 11), Theta1)
+
+# Simulation
+y3 <- arima.sim(n = n, model = list(ar = ar3, ma = ma3))
+y3_ts <- ts(y3, frequency = 12)  # période saisonnière s=12
+```
+
+#### Répresentation graphique
+```{r}
+plot(y3_ts, type = "l",
+     main = "Série simulée (modèle 3, s = 12)",
+     ylab = expression(Y[t]), xlab = "t")
+abline(h = 0, lty = 2)
+```
+#### Autocorrélogrammes (ACF/PACF)
+
+```{r}
+par(mfrow = c(1,2))
+acf(y3_ts,  main = "ACF (série simulée)", lag.max = 48)
+pacf(y3_ts, main = "PACF (série simulée)", lag.max = 48)
+par(mfrow = c(1,1))
+```
+Sur ces autocorrélogrammes, on voit que la plupart des barres restent dans les bandes de confiance (ACF comme PACF), donc il ne reste qu’une dépendance faible : la série se rapproche d’un bruit blanc. Les quelques pics isolés qui dépassent légèrement les bandes peuvent venir de l’échantillonnage (n=500) ou d’une dynamique très ponctuelle, mais il n’y a pas de structure nette (pas de “grande coupure” typique AR pur, ni de décroissance lente). Globalement, ça suggère que ce 3e modèle filtre correctement l’essentiel de la dépendance.
+
+## 2. Estimation du modèle simulé + diagnostics
+
+```{r}
+# Modèle "vrai" :
+# (1 - phi1 L - phi2 L^2) Yt = (1 + Theta1 L^12) εt
+# => ARIMA(2,0,0)(0,0,1)[12]
+
+fit_true3 <- Arima(
+  y3_ts,
+  order    = c(2, 0, 0),                  # AR(2)
+  seasonal = list(order = c(0, 0, 1),      # MA saisonnier d'ordre 1
+                  period = 12),
+  include.mean = FALSE
+)
+
+summary(fit_true3)
+```
+Modèle avec une dynamique non saisonnière AR(2) + une composante saisonnière MA(1) à période 12 : ARIMA(2,0,0)(0,0,1)[12].
+
+Les trois coefficients sont clairement significatifs (ils sont largement supérieurs à leurs écarts-types) :
+
+AR1 ≈ 0.84 montre une forte inertie d’une période sur l’autre,
+
+AR2 ≈ −0.28 (signe négatif) apporte une correction à deux pas, donc une dynamique un peu “ondulante” plutôt qu’un simple AR(1),
+
+SMA1 ≈ 0.35 confirme qu’il reste un effet saisonnier tous les 12 pas de temps (un choc se répercute aussi d’une année/cycle à l’autre).
+
+Enfin, AIC/BIC plutôt bas et ACF1 proche de 0 vont dans le sens d’un ajustement correct : le modèle capte l’essentiel de la dépendance immédiate sans laisser une grosse corrélation résiduelle au premier retard.
+
+```{r}
+checkresiduals(fit_true3)
+```
+Les résidus sont bien centrés autour de 0 et ne montrent pas de structure visible dans le temps. L’ACF des résidus est globalement dans les bandes (avec au pire quelques petits dépassements isolés), donc il ne reste pas d’autocorrélation claire à expliquer : on est assez proche d’un bruit blanc. L’histogramme est plutôt en cloche et symétrique, ce qui va dans le sens d’erreurs “raisonnablement” normales. Globalement, ce diagnostic indique que le modèle a bien capté la dépendance (dont la composante saisonnière à 12).
+
+## 3. Autre modèle équivalent
+
+Ici, on peut aussi essayer un modèle “plus général” en ajoutant une petite composante MA(1) non-saisonnière, histoire de capter d’éventuels effets très courts restants (même si ce n’est pas dans le vrai DGP).
+```{r}
+fit_alt3 <- Arima(
+  y3_ts,
+  order    = c(2, 0, 1),                  # on ajoute MA(1)
+  seasonal = list(order = c(0, 0, 1),
+                  period = 12),
+  include.mean = FALSE
+)
+
+summary(fit_alt3)
+```
+Comparaison + résidus
+
+```{r}
+AIC(fit_true3, fit_alt3)
+BIC(fit_true3, fit_alt3)
+```
+```{r}
+checkresiduals(fit_alt3)
+```
+Oui, on peut aussi obtenir des résidus proches d’un bruit blanc avec un autre modèle, ici ARIMA(2,0,1)(0,0,1)[12] (fit_alt3) : sur les diagnostics, les résidus restent bien centrés et l’ACF des résidus est globalement dans les bandes, donc le modèle ne laisse pas de dépendance évidente.
+
+En revanche, ce modèle ajoute un paramètre MA(1) qui n’apporte pas vraiment de gain : AIC passe de 1422.35 (fit_true3) à 1423.42 (fit_alt3) et BIC de 1439.20 à 1444.50. Comme AIC/BIC sont plus faibles pour fit_true3, on garde le modèle “vrai” ARIMA(2,0,0)(0,0,1)[12] : il est plus simple et il décrit déjà correctement la structure (y compris la saisonnalité à 12), sans complexifier inutilement.
+
+
+# Exercise 2: Analyse d’une série temporelle saisonnière : la consommation de gaz naturel en France (2008-2024)
+```{r}
+# Packages
+library(forecast)
+
+# Import (fichier MADOC) — adapte le nom si besoin
+gaz_df <- read.csv2("gas_consumption_France-2008-2024.csv")
+
+# Mise en forme
+gaz_df$date <- as.Date(paste0(gaz_df$period, "-01"))
+gaz_df <- gaz_df[order(gaz_df$date), ]
+
+# Petit check rapide : pas de mois manquants ?
+dates_full <- seq(min(gaz_df$date), max(gaz_df$date), by = "month")
+setdiff(dates_full, gaz_df$date)  # doit renvoyer character(0) si tout est OK
+
+# Série temporelle mensuelle (s=12)
+gaz_ts <- ts(gaz_df$consumption, start = c(2008, 1), frequency = 12)
+
+# Graphe
+plot(gaz_ts, type = "l",
+     main = "Consommation de gaz naturel (France, 2008–2024)",
+     ylab = "Consommation", xlab = "Temps")
+```
+On observe une saisonnalité annuelle très marquée : des pics en hiver et des creux en été, qui se répètent de façon régulière sur toute la période.  
+La série ne présente pas de tendance nette à long terme, mais on remarque une baisse plus visible sur la fin (2023–2024), avec des niveaux globalement plus faibles.
+
+### 2) Caractéristiques à prendre en compte (saisonnalité + dépendance)
+
+```{r}
+# Profil saisonnier (simple et parlant)
+monthplot(gaz_ts, main = "Saisonnalité mensuelle (s = 12)", ylab = "Consommation")
+
+# ACF/PACF (on regarde assez loin pour voir les multiples de 12)
+par(mfrow = c(1,2))
+acf(gaz_ts,  main = "ACF (série brute)", lag.max = 60)
+pacf(gaz_ts, main = "PACF (série brute)", lag.max = 60)
+par(mfrow = c(1,1))
+```
+
+Sur le graphique “Saisonnalité mensuelle (s=12)”, on voit un profil qui se répète selon les mois : certains mois sont systématiquement plus hauts/bas que d’autres → saisonnalité annuelle claire (période 12).
+
+Sur l’ACF (série brute), on observe des pics très marqués et réguliers à des retards qui reviennent périodiquement (≈ 12, 24, 36, …) : c’est exactement la signature d’une saisonnalité de période 12, donc il faudra la modéliser explicitement (termes saisonniers, différenciation saisonnière, etc.).
+
+La PACF montre un gros effet aux tout premiers retards puis ça devient beaucoup plus faible : ça suggère qu’en plus de la saisonnalité, il y a une dépendance court-terme (la série “se souvient” du mois précédent), mais que l’essentiel de la structure vient surtout de la répétition annuelle.
+
+
+### 3) Proposition de modélisation
+Comme la série est strictement positive et que l’amplitude saisonnière peut varier, on travaille souvent en log (variance plus stable), puis on prend en compte la saisonnalité s=12 via une composante SARIMA.
+
+```{r}
+gaz_log <- log(gaz_ts)
+
+#  guider le choix de d et D
+ndiffs(gaz_log)   # différenciation non saisonnière
+nsdiffs(gaz_log)  # différenciation saisonnière (période 12)
+```
+Ici on obtient ndiffs = 0 et nsdiffs = 1 : on ne différencie pas “au pas 1” (d=0), mais on retire la saisonnalité annuelle avec une différenciation saisonnière (D=1 avec s=12, i.e. Δ_12log(𝑌_t)= log(𝑌_𝑡)−log(𝑌_{𝑡−12})
+
+On retient une modélisation de type SARIMA saisonnier :
+```{r}
+# Exemple de modèle parcimonieux 
+fit_gaz <- Arima(
+  gaz_log,
+  order    = c(1, 0, 1),
+  seasonal = list(order = c(0, 1, 1), period = 12),
+  include.drift = FALSE
+)
+
+summary(fit_gaz)
+```
+On obtient un modèle parcimonieux sur la série en log : ARIMA(1,0,1)(0,1,1)[12]. La différenciation saisonnière D=1 traite la saisonnalité annuelle (effet “même mois l’an dernier”), et le terme SMA(1) capture la dépendance saisonnière restante. Les trois coefficients (AR1, MA1 et SMA1) sont nettement significatifs (|t| largement > 2), donc la dynamique court-terme et la structure annuelle sont bien identifiées. Les AIC/BIC donnent une base pour comparer à d’autres spécifications, et l’ACF1 des résidus (≈ 0.16) invite à vérifier les diagnostics résiduels, mais l’ensemble reste cohérent avec une approche Box–Jenkins parcimonieuse.
+
+Diagnostics (objectif : résidus ≈ bruit blanc) :
+```{r}
+checkresiduals(fit_gaz)
+```
+Les résidus sont globalement centrés autour de 0 et l’histogramme est assez proche d’une forme en cloche : pas d’anomalie énorme visuellement. L’ACF des résidus reste souvent dans les bandes, mais on voit encore quelques pics (notamment autour de l’échelle saisonnière), donc il peut rester un peu de structure non expliquée. Malgré ça, le modèle SARIMA(1,0,1)(0,1,1)_{12} donne une bonne base et surtout capture l’essentiel : saisonnalité annuelle très marquée (s=12) + dépendance court-terme, sans introduire de tendance (d=0).
+
+# Exercice 3 — Trafic mensuel Toulouse-Blagnac (1993–2008)
+
+## 1) Import + mise en série + décomposition
+```{r}
+
+# Import (fichier MADOC) : charge l'objet trafmensu dans l'environnement
+load("trafmensu.rda")
+
+# Vérification rapide
+ls()
+
+# Mise au format ts (mensuel)
+traf_ts <- ts(trafmensu, start = c(1993, 1), frequency = 12)
+
+# Visualisation
+plot(traf_ts, type = "l",
+     main = "Fréquentation Toulouse-Blagnac (mensuel, 1993–2008)",
+     ylab = "nb de passagers", xlab = "Temps")
+
+# Décomposition "classique" (additive)
+decomp <- decompose(traf_ts)
+plot(decomp)
+
+```
+
+La décomposition additive montre très clairement trois choses :
+
+Une tendance de fond croissante sur 1993–2008 (la composante trend monte globalement), avec un petit ralentissement / palier au début des années 2000 avant de repartir à la hausse.
+
+Une saisonnalité mensuelle forte (période 12) : le motif se répète chaque année et l’amplitude paraît plutôt stable, ce qui rend l’hypothèse additive cohérente (saisonnalité qui ne “grossit” pas fortement avec le niveau).
+
+Une composante irrégulière non négligeable, avec quelques épisodes plus “agités” (chocs ponctuels) qui peuvent correspondre à des mois atypiques.
+
+Modéliser toute la période d’un seul bloc peut être discutable, non pas parce que la saisonnalité disparaît (elle reste bien présente), mais parce que la tendance n’est pas parfaitement régulière sur toute la période (palier/rupture visuelle autour du début des années 2000). La démarche logique est donc :
+
+retirer d’abord la tendance (par régression linéaire sur 
+t, puis on travaille sur les résidus/détrendés),
+
+puis modéliser la partie stationnaire restante en tenant compte de la saisonnalité : soit par différenciation saisonnière, soit via un modèle SARIMA avec termes saisonniers,
+
+et enfin valider avec les résidus (ACF des résidus ≈ dans les bandes, pas de structure restante)
+
+## 2) Retirer la tendance linéaire (détrend)
+
+```{r}
+t <- time(traf_ts)
+trend_lm <- lm(as.numeric(traf_ts) ~ t)
+traf_detr <- ts(residuals(trend_lm), start = start(traf_ts), frequency = 12)
+
+plot(traf_detr, type = "l",
+     main = "Série détrendée (résidus de la tendance linéaire)",
+     ylab = "Résidu", xlab = "Temps")
+abline(h = 0, lty = 2)
+
+```
+On enlève d’abord la tendance (ici linéaire) pour travailler sur une série centrée, afin de mieux isoler la dynamique saisonnière + dépendance.
+
+## 3) Deux modélisations après détrend
+
+### (A) Approche “différenciation saisonnière” (D = 1)
+supprimer directement la saisonnalité par Δ12(traf_detr,t)=traf_detr,t−traf_detr,t−12, puis ajuster un ARMA “classique” sur la série différenciée.
+```{r}
+# Différenciation saisonnière (période 12)
+traf_sd <- diff(traf_detr, lag = 12)
+
+# ACF/PACF (utile pour guider p et q)
+par(mfrow = c(1,2))
+acf(traf_sd,  main = "ACF (détrend + diff saisonnière)", lag.max = 60)
+pacf(traf_sd, main = "PACF (détrend + diff saisonnière)", lag.max = 60)
+par(mfrow = c(1,1))
+
+# Modèle non-saisonnier sur la série déjà "désaisonnalisée"
+fit_diff <- auto.arima(traf_sd, seasonal = FALSE, stationary = TRUE, stepwise = FALSE, approximation = FALSE)
+summary(fit_diff)
+
+checkresiduals(fit_diff)
+
+```
+la stratégie “détrend + diff saisonnière (12)” est pertinente et conforme à ce qu’on attend sur une série mensuelle. Elle stabilise la série et permet ensuite un ARMA sur la série transformée, mais les diagnostics indiquent qu’on peut encore améliorer légèrement l’ajustement (ordre AR/MA ou ajout d’un terme saisonnier dans l’étape suivante 3b) car l’ACF des résidus montre encore quelques pics qui sortent des bandes, et surtout le test de Ljung-Box est significatif (p ≈ 0,03) → on rejette l’hypothèse de résidus parfaitement “bruit blanc” au seuil 5%. Donc la différenciation saisonnière a bien fait le gros du travail, mais le modèle ARIMA(3,0,2) n’épuise pas toute la dépendance (il resterait sans doute un petit effet saisonnier ou quelques lags à ajuster).
+
+### (B) Approche “modèle saisonnier” (SARIMA)
+garder la série détrendée mais modéliser explicitement la saisonnalité via des termes saisonniers (P,D,Q)_12
+
+```{r}
+# Modèle SARIMA directement sur la série détrendée
+fit_sarima <- auto.arima(traf_detr, seasonal = TRUE, D = 1,
+                         stepwise = FALSE, approximation = FALSE)
+summary(fit_sarima)
+
+checkresiduals(fit_sarima)
+
+```
+Pour le modèle saisonnier sur la série détrendée, on estime un SARIMA(2,1,2)(0,1,1)12. L’idée est de gérer à la fois la dépendance « classique » (partie ARMA) et la saisonnalité annuelle via la différenciation saisonnière (D=1, s=12) et un MA saisonnier (SMA1).
+
+D’après la sortie, la composante saisonnière est très bien captée : SMA1 ≈ −0.62 est nettement significatif (écart-type faible). Côté non-saisonnier, tous les termes ne sont pas indispensables : AR2 et MA2 ressortent clairement, tandis que AR1 et MA1 sont plus limites (moins significatifs).
+
+Les diagnostics sont bons : les résidus sont centrés et l’ACF des résidus reste globalement dans les bandes, et surtout le test de Ljung–Box donne p ≈ 0.758, donc on ne détecte pas d’autocorrélation résiduelle → on est proche d’un bruit blanc. Au final, ce modèle saisonnier est cohérent et explique bien la structure restante après retrait de la tendance, en particulier la saisonnalité à 12 mois.
+
+## 4) Comparaison des deux modèles
+
+```{r}
+AIC(fit_diff, fit_sarima)
+BIC(fit_diff, fit_sarima)
+
+```
+Enfin, la comparaison des critères va dans le même sens : AIC/BIC sont nettement plus faibles pour le SARIMA (AIC ≈ 1369 ; BIC ≈ 1388) que pour l’approche “diff + ARMA” (AIC ≈ 1411 ; BIC ≈ 1429). On retient donc le modèle SARIMA, plus cohérent avec une série mensuelle saisonnière et mieux validé par les diagnostics.

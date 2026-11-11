@@ -1,0 +1,193 @@
+---
+title: "SERIES TEMPORELLES UNIVARIEES_TP"
+format: pdf
+editor: visual
+author: "Diane ANATO & Patrice KOLIE" 
+---
+
+```{r}
+# Importation des librairies
+library(readxl)
+library(dplyr)
+library(forecast)
+library(lmtest)
+```
+
+```{r}
+#Importation de la base
+BrentSpot <- read_excel("BrentSpot.xls", sheet = "Data 1",skip =2)
+```
+
+```{r}
+
+# Renommer la colonne Prix
+
+BrentSpot <- BrentSpot |> 
+  rename(Pt = `Europe Brent Spot Price FOB (Dollars per Barrel)`)
+
+# Vérification
+head(df)
+```
+
+```{r}
+# Création du prix retardé
+BrentSpot <- BrentSpot |> 
+  mutate(Pt_1 = lag(Pt, 1))
+
+# Vérification
+head(BrentSpot)
+
+```
+
+```{r}
+# Création de la colonne rendement
+BrentSpot <- BrentSpot |> 
+  mutate(rt = log(Pt / Pt_1))
+
+# Vérification
+head(BrentSpot)
+```
+
+## Estimation des processus autorégressifs via AR(1) et AR(2) par MCO
+
+-   AR(1) : $r_t=\phi_0+\phi_1 r_{t−1}+\epsilon_t$
+
+```{r}
+# Création du retard 1
+BrentSpot <- BrentSpot |> 
+  mutate(r_1 = lag(rt, 1)) |> 
+  filter(!is.na(r_1))
+
+# Régression MCO AR(1)
+MCO_ar1 <- lm(rt ~ r_1, data = BrentSpot)
+summary(MCO_ar1)
+```
+
+On peut voir que $r_{t_1}$ est significativement différent au seuil de 5%.
+
+-   AR(2) : $r_t=\phi_0+\phi_1 r_{t−1}+\phi_2*r_{t−2}+\epsilon_t$
+
+```{r}
+# Création du retard 2
+BrentSpot <- BrentSpot |> 
+  mutate(r_2 = lag(rt, 2)) |> 
+  filter(!is.na(r_2))
+
+# Régression MCO AR(2)
+MCO_ar2 <- lm(rt ~ r_1 + r_2, data = BrentSpot)
+summary(MCO_ar2)
+```
+
+On peut voir que $r_{t_1}$ est significativement différent au seuil de 5% et \$r\_{t_2} ne l'et pas.
+
+## Estimation eà travers la fonction arima
+
+```{r}
+# Estimation de AR(1)
+fit_ar1 <- Arima(BrentSpot$rt, order = c(1,0,0), include.mean = TRUE)
+summary(fit_ar1)
+```
+
+```{r}
+#Estimation de AR (2)
+fit_ar2 <- Arima(BrentSpot$rt, order = c(2,0,0), include.mean = TRUE)
+summary(fit_ar2)
+```
+
+```{r}
+# coefficients de AR(1)
+coef(MCO_ar1) #MCO
+coef(fit_ar1) #ARIMA
+
+```
+
+En considérant l'estimation du AR(1), on constate que les coefficient du retard $r_{t-1}$ et la constance(itercept) sont assez proches. Nous avons, 0,O304 avec les MCO et 0,0305 avec la méthode de vraisemblancepour le premier retard.
+
+```{r}
+# coefficients de AR(2)
+coef(MCO_ar2)
+coef(fit_ar2)
+```
+
+En considérant l'estimation du AR(2), on constate que les coefficient des retards et la constance(itercept) par la méthode des MCO et par la méthode de vraisemblance sont assez proches.
+
+## Modélisation ARMA du rendement d’un indice boursier
+
+```{r}
+plot(BrentSpot$rt, type="l", main="Rendements du BrentSpot", ylab="Rendement", xlab="Temps")
+```
+
+```{r}
+hist(BrentSpot$rt, breaks=30, main="Histogramme des rendements", xlab="Rendement")
+```
+
+```{r}
+acf(BrentSpot$rt, main="ACF des rendements")
+pacf(BrentSpot$rt, main="PACF des rendements")
+```
+
+On remarque une décroissance exponentielle au niveau de l'ACF. Et une irrégularité des retards au niveau de la PACF.
+
+```{r}
+library(ggplot2)
+
+y <- BrentSpot$rt[!is.na(BrentSpot$rt)]
+
+results <- data.frame()
+
+for(p in 0:12){
+  for(q in 0:2){
+    mod <- arima(y, order = c(p,0,q))
+    results <- rbind(results,
+                     data.frame(P = p,
+                                Q = q,
+                                AIC = AIC(mod),
+                                BIC = BIC(mod)))
+  }
+}
+
+```
+
+```{r}
+best <- results[which.min(results$AIC), ]
+
+ggplot(results, aes(x = P, y = AIC, shape = factor(Q), color = factor(Q))) +
+  geom_point(size = 3) +
+  # Cercle rouge autour du meilleur AIC
+  geom_point(data = best, aes(x = P, y = AIC),
+             shape = 21, fill = NA, color = "red", size = 6, stroke = 1.5) +
+  labs(title = "Critère AIC pour ARMA(P,Q)",
+       x = "P",
+       y = "AIC",
+       shape = "Q",
+       color = "Q") +
+  theme_minimal()
+
+
+
+```
+
+Le modèle préconisé est ARMA(6,1)
+
+```{r}
+best_bic <- results[which.min(results$BIC), ]
+
+ggplot(results, aes(x = P, 
+                    y = BIC, 
+                    shape = factor(Q), 
+                    color = factor(Q))) +
+  geom_point(size = 3) +
+  # Cercle rouge autour du meilleur BIC
+  geom_point(data = best_bic, aes(x = P, y = BIC),
+             shape = 21, fill = NA, color = "red", size = 6, stroke = 1.5) +
+  labs(title = "Critère BIC pour ARMA(P,Q)",
+       x = "P",
+       y = "BIC",
+       shape = "Q",
+       color = "Q") +
+  theme_minimal()
+
+
+```
+
+Selon le critère BIC, le modèle préconisé est un ARMA(0,2) qui est le MA(2)

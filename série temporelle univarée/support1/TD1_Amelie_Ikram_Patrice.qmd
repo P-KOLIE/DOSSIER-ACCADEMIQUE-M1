@@ -1,0 +1,510 @@
+---
+title: "Séries temporelles univariées"
+subtitle: "TD1 : Processus stochastiques"
+author: "Amélie Pires, Ikram Abouzayd et Patrice Kolié"
+format:
+  pdf :
+    pdf:
+    documentclass: article
+    geometry:
+      - left=2.5cm
+      - right=2.5cm
+      - top=2.5cm
+      - bottom=2.5cm
+    toc: true
+    toc-depth: 2
+    toc-title: "Sommaire"
+    code-fold: true
+    echo: true
+    results: asis
+    highlight: true
+    text-justify: true
+---
+
+\newpage
+
+# Exercice 1 : Stationnarité de processus ARMA
+
+## Equation 1
+
+$$
+\begin{aligned}
+Y_t &= \eta_t + 0.8\,L\eta_t \\
+    &= (1 + 0.8L)\,\eta_t
+\end{aligned}
+$$
+
+MA(1) est stationnaire au sens faible puisque la moyenne, la variance et la fonction d'autocovariance du processus sont constantes dans le temps.
+
+## Equation 2
+
+$$
+\begin{aligned}
+Y_t &= \eta_t + 0.6\,L\eta_t - 0.3\,L^2\eta_t \\
+    &= (1 + 0.6L - 0.3L^2)\,\eta_t
+\end{aligned}
+$$
+
+MA(2) est stationnaire au sens faible puisque la moyenne, la variance et la fonction d'autocovariance du processus sont constantes dans le temps.
+
+## Equation 3
+
+$$
+\begin{aligned}
+Y_t &= 0.9\,Y_{t-1} + \eta_t \\
+Y_t - 0.9\,Y_{t-1} &= \eta_t \\
+Y_t - 0.9\,L Y_t &= \eta_t \\
+(1 - 0.9\,L)\,Y_t &= \eta_t
+\end{aligned}
+$$ Dans ce modèle autorégressif d’ordre 1, la stationnarité dépend du coefficient associé au terme retardé. Celui-ci est égal à Φ=0.9, dont la valeur absolue est strictement inférieure à 1. Le processus vérifie donc la condition de stationnarité au sens faible.
+
+À titre de vérification, l’équation caractéristique associée à la partie autorégressive est :
+
+$$
+z - 0.9 = 0
+$$
+
+La racine de cette équation est donnée par :
+
+$$
+z = 0.9
+$$
+
+Le module de cette racine étant strictement inférieur à 1, on conclut que le processus est stationnaire au sens faible.
+
+## Equation 4
+
+Le processus peut s’écrire sous la forme suivante :
+
+$$
+\aligned
+Y_t &= 0.9 Y_{t-1} - 0.7 Y_{t-2} + \eta_t \\
+Y_t - 0.9 Y_{t-1} + 0.7 Y_{t-2} &= \eta_t \\
+Y_t - 0.9 L Y_t + 0.7 L^2 Y_t &= \eta_t \\
+(1 - 0.9 L + 0.7 L^2) Y_t &= \eta_t
+\endaligned
+$$
+
+L’équation caractéristique associée au processus est :
+
+$$
+z^2 - 0.9 z + 0.7 = 0
+$$
+
+Les racines de cette équation sont :
+
+$$
+z_1 = 0.45 - 0.7053 i
+\qquad \text{et} \qquad
+z_2 = 0.45 + 0.7053 i
+$$
+
+Les modules des racines sont :
+
+$$
+|z_1| = \sqrt{0.45^2 + (-0.7053)^2} \simeq 0.8366 < 1
+$$
+
+$$
+|z_2| = \sqrt{0.45^2 + 0.7053^2} \simeq 0.8366 < 1
+$$
+
+Les valeurs absolues des deux racines étant strictement inférieures à 1,\
+le processus est donc stationnaire au sens faible.
+
+## Equation 5
+
+$$
+Y_t = 0{,}8\,LY_t + \eta_t - 0{,}7\,L\eta_t
+$$
+
+Le processus peut être réécrit de la manière suivante :
+
+$$
+\aligned
+Y_t &= 0.8 Y_{t-1} + \eta_t - 0.7 \eta_{t-1} \\
+Y_t - 0.8 Y_{t-1} &= \eta_t - 0.7 \eta_{t-1} \\
+(1 - 0.8 L) Y_t &= (1 - 0.7 L)\eta_t
+\endaligned
+$$
+
+Dans ce modèle ARMA(1,1), la condition de stationnarité dépend uniquement de la partie autorégressive. Le coefficient associé au terme retardé est égal à Φ = 0.8, dont la valeur absolue est strictement inférieure à 1. Le processus satisfait donc la condition de stationnarité au sens faible.
+
+À titre de vérification, l’équation caractéristique associée à la composante autorégressive s’écrit :
+
+$$
+z - 0.8 = 0
+$$
+
+La racine de cette équation est :
+
+$$
+z = 0.8
+$$
+
+Le module de cette racine étant strictement inférieur à 1, on en conclut que le processus est stationnaire au sens faible.
+
+## Equation 6
+
+$$
+Y_t = 2{,}5LY_t - 0{,}5L^2Y_t - L^3Y_t + \eta_t + L\eta_t + 2L^2\eta_t
+$$
+
+Le processus peut être réécrit de la façon suivante : $$
+\aligned
+Y_t &= 2.5 Y_{t-1} - 0.5 Y_{t-2} - Y_{t-3} + \eta_t + \eta_{t-1} + 2\eta_{t-2} \\
+Y_t - 2.5 Y_{t-1} + 0.5 Y_{t-2} + Y_{t-3} &= \eta_t + \eta_{t-1} + 2\eta_{t-2} \\
+Y_t - 2.5 L Y_t + 0.5 L^2 Y_t + L^3 Y_t &= (1 + L + 2L^2)\eta_t \\
+(1 - 2.5 L + 0.5 L^2 + L^3) Y_t &= (1 + L + 2L^2)\eta_t
+\endaligned
+$$
+
+La condition de stationnarité dépend uniquement de la partie autorégressive. L’équation caractéristique associée à celle-ci s’écrit :
+
+$$
+z^3 - 2.5 z^2 + 0.5 z + 1 = 0
+$$
+
+Les racines de cette équation sont données par :
+
+$$
+z_1 = -0.5, \qquad z_2 = 1, \qquad z_3 = 2
+$$
+
+L’une des racines ayant un module strictement supérieur ou égal à 1 (en particulier ∣2∣\>1), la condition de stationnarité au sens faible n’est pas vérifiée. On en conclut donc que le processus n’est pas stationnaire au sens faible.
+
+# Exercice 2 : Simulation de processus ARMA et analyse des autocorrélogrammes
+
+```{r}
+#| output: false
+library(tseries)
+library(forecast) 
+library(ggplot2) 
+library(purrr)
+```
+
+## Générer un échantillon de 1000 observations
+
+```{r}
+set.seed(429) # Graine pour assurer la reproductibilité
+
+N <- 1000 # Échantillon de 1000 observations
+Yt <- ts(numeric(N)) # Processus stochastique, sérié temporelle
+epsilon <- rnorm(N) # Bruit blanc ~ N(0,1)
+```
+
+La graine du générateur est fixée aléatoirement à 429 afin d’assurer la reproductibilité des simulations
+
+## Equation 1
+
+$$
+AR(1): \, Y_{t} = 0.65 \, Y_{t-1} + \varepsilon_{t}
+$$
+
+### Simulation de processus
+
+```{r}
+Y <- Yt               #coefficient
+Phi <- 0.65
+
+for (t in 2:N) {      #simulation
+  Y[t]<-Phi*Y[t-1]+epsilon[t]}
+```
+
+### Représentations graphique
+
+```{r}
+# Représentations
+representations <- list(
+  list(fonction = autoplot, titre = "Graphique de l'échantillon"),
+  list(fonction = \(x) ggAcf(x, lag.max = 30),  titre = "Autocorrélogramme de l'ACF"),
+  list(fonction = \(x) ggPacf(x, lag.max = 30), titre = "Autocorrélogramme partiel de la PACF"))
+
+# Graphiques
+graphiques <- representations |>
+  map(\(r) r$fonction(Y) +
+        ggtitle(r$titre) +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5)))
+```
+
+```{r}
+#| echo: false
+
+graphiques[[1]]
+graphiques[[2]]
+graphiques[[3]]
+```
+
+Le graphique de la série simulée montre des fluctuations autour de zéro sans tendance apparente ni variation de la variance, ce qui suggère un comportement stationnaire.
+
+Le coefficient d’autocorrélation est positif et significativement différent de zéro au premier retard. Il diminue ensuite progressivement avec le retard et devient non significatif après quelques périodes, en se stabilisant à l’intérieur des bandes de confiance.
+
+Le coefficient d’autocorrélation partielle présente un pic significatif au premier retard, tandis que les retards suivants ne sont pas significatifs.
+
+Ces résultats sont conformes à ce qui est attendu pour un processus autorégressif d’ordre 1 avec un coefficient positif.
+
+## Equation 2
+
+$$
+AR(1): Y_t = -0{,}65Y_{t-1} + \varepsilon_t
+$$
+
+### Simulation du processus
+
+```{r}
+Y <- Yt
+Phi <- -0.65
+
+Y[1] <- epsilon[1]
+for (t in 2:N) {
+  Y[t] <- Phi * Y[t - 1] + epsilon[t]}
+```
+
+### Représentations graphique
+
+```{r}
+# Représentations
+representations <- list(
+  list(fonction = autoplot, titre = "Graphique de l'échantillon"),
+  list(fonction = \(x) ggAcf(x, lag.max = 30),  titre = "Autocorrélogramme de l'ACF"),
+  list(fonction = \(x) ggPacf(x, lag.max = 30), titre = "Autocorrélogramme partiel de la PACF"))
+
+# Graphiques
+graphiques <- representations |>
+  map(\(r) r$fonction(Y) +
+        ggtitle(r$titre) +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5)))
+```
+
+```{r}
+#| echo: false
+
+graphiques[[1]]
+graphiques[[2]]
+graphiques[[3]]
+```
+
+La série oscille autour de zéro sans tendance visible et avec une variance globalement constante.
+
+Le coefficient d’autocorrélation est négatif et fortement significatif au premier retard. Il décroît ensuite rapidement en alternant les signes, puis devient non significatif pour les retards suivants en restant à l’intérieur des bandes de confiance.
+
+Le coefficient d’autocorrélation partielle présente un pic significatif au premier retard, tandis que les autres retards sont non significatifs.
+
+Ces résultats sont conformes à ce qui est attendu pour un processus autorégressif d’ordre 1 avec un coefficient négatif.
+
+## Equation 3
+
+$$
+AR(2): Y_t = -0{,}5Y_{t-1} - 0{,}4Y_{t-2} + \varepsilon_t
+$$
+
+### Simulation du processus
+
+```{r}
+Y <- Yt
+Phi1 <- -0.5
+Phi2 <- -0.4
+
+# initialisation
+Y[1] <- epsilon[1]
+Y[2] <- Phi1 * Y[1] + epsilon[2]
+
+for (t in 3:N) {
+  Y[t] <- Phi1 * Y[t - 1] + Phi2 * Y[t - 2] + epsilon[t]}
+```
+
+### Représentations graphique
+
+```{r}
+# Représentations
+representations <- list(
+  list(fonction = autoplot, titre = "Graphique de l'échantillon"),
+  list(fonction = \(x) ggAcf(x, lag.max = 30),  titre = "Autocorrélogramme de l'ACF"),
+  list(fonction = \(x) ggPacf(x, lag.max = 30), titre = "Autocorrélogramme partiel de la PACF")
+)
+
+# Graphiques
+graphiques <- representations |>
+  map(\(r) r$fonction(Y) +
+        ggtitle(r$titre) +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5))
+  )
+```
+
+```{r}
+#| echo: false
+
+graphiques[[1]]
+graphiques[[2]]
+graphiques[[3]]
+```
+
+Le graphique de l’échantillon montre une série qui fluctue autour de zéro sans tendance apparente avec une variance globalement stable dans le temps.
+
+Le coefficient d’autocorrélation est négatif aux premiers retards et significativement différent de zéro, avec une alternance de signes et une décroissance progressive vers zéro avant de se stabiliser à l’intérieur de l’intervalle de confiance.
+
+Le coefficient d’autocorrélation partielle présente des valeurs significatives aux deux premiers retards, puis devient non significatif pour les retards suivants.
+
+Ces représentations sont donc conformes à ce qui est attendu pour un processus autorégressif d’ordre 2, en particulier avec des coefficients négatifs.
+
+## Equation 4
+
+$$
+MA(1): Y_t = \varepsilon_t - 0{,}8\varepsilon_{t-1}
+$$
+
+### Simulation du processus
+
+```{r}
+Y <- Yt
+Theta <- -0.8
+
+# initialisation
+Y[1] <- epsilon[1]
+
+for (t in 2:N) {
+  Y[t] <- epsilon[t] + Theta * epsilon[t - 1]}
+```
+
+### Représentations graphique
+
+```{r}
+# Représentations
+representations <- list(
+  list(fonction = autoplot, titre = "Graphique de l'échantillon"),
+  list(fonction = \(x) ggAcf(x, lag.max = 30),  titre = "Autocorrélogramme de l'ACF"),
+  list(fonction = \(x) ggPacf(x, lag.max = 30), titre = "Autocorrélogramme partiel de la PACF"))
+
+# Graphiques
+graphiques <- representations |>
+  map(\(r) r$fonction(Y) +
+        ggtitle(r$titre) +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5)))
+```
+
+```{r}
+#| echo: false
+
+graphiques[[1]]
+graphiques[[2]]
+graphiques[[3]]
+```
+
+Le graphique de l’échantillon montre une série qui oscille autour de zéro sans tendance apparente, avec une variance globalement stable dans le temps.
+
+Le coefficient d’autocorrélation est négatif et significativement différent de zéro au premier retard, où il présente un pic marqué en dessous de zéro. Pour les retards suivants, les coefficients restent faibles et se situent majoritairement à l’intérieur des bandes de confiance.
+
+Le coefficient d’autocorrélation partielle décroît progressivement avec le retard. Il est significativement différent de zéro pour les premiers retards, avec des valeurs principalement négatives, puis devient non significatif en se stabilisant autour de zéro à l’intérieur des bandes de confiance, sans coupure nette.
+
+Ces représentations sont donc conformes à ce qui est attendu pour un processus à moyenne mobile d’ordre 1 avec un coefficient négatif.
+
+## Equation 5
+
+$$
+MA(2): Y_t = \varepsilon_t + 0{,}5\varepsilon_{t-1} + 0{,}4\varepsilon_{t-2}
+$$
+
+### Simulation du processus
+
+```{r}
+Y <- Yt
+Theta1 <- 0.5
+Theta2 <- 0.4
+
+# initialisation
+Y[1] <- epsilon[1]
+Y[2] <- epsilon[2] + Theta1 * epsilon[1]
+
+for (t in 3:N) {
+  Y[t] <- epsilon[t] + Theta1 * epsilon[t - 1] + Theta2 * epsilon[t - 2]}
+```
+
+### Représentations graphique
+
+```{r}
+# Représentations
+representations <- list(
+  list(fonction = autoplot, titre = "Graphique de l'échantillon"),
+  list(fonction = \(x) ggAcf(x, lag.max = 30),  titre = "Autocorrélogramme de l'ACF"),
+  list(fonction = \(x) ggPacf(x, lag.max = 30), titre = "Autocorrélogramme partiel de la PACF"))
+
+# Graphiques
+graphiques <- representations |>
+  map(\(r) r$fonction(Y) +
+        ggtitle(r$titre) +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5)))
+```
+
+```{r}
+#| echo: false
+
+graphiques[[1]]
+graphiques[[2]]
+graphiques[[3]]
+```
+
+Le graphique de l’échantillon montre une série qui fluctue autour de zéro sans tendance apparente, avec une variance globalement stable dans le temps.
+
+Le coefficient d’autocorrélation est positif et significativement différent de zéro pour les deux premiers retards. Il dépasse les bandes de confiance aux retards 1 et 2, puis devient faible et non significatif à partir du retard 3, où il se stabilise à l’intérieur de l’intervalle de confiance.
+
+Le coefficient d’autocorrélation partielle décroît progressivement avec le retard, sans coupure nette, et alterne légèrement entre valeurs positives et négatives avant de se stabiliser autour de zéro.
+
+Ces représentations sont donc conformes à ce qui est attendu pour un processus MA(2).
+
+## Equation 6
+
+$$
+ARMA(1,1): Y_t = 0{,}9Y_{t-1} + \varepsilon_t + 0{,}8\varepsilon_{t-1}
+$$
+
+### Simulation du processus
+
+```{r}
+Y <- Yt
+Phi <- 0.9
+Theta <- 0.8
+
+# initialisation
+Y[1] <- epsilon[1]
+
+for (t in 2:N) {
+  Y[t] <- Phi * Y[t - 1] + epsilon[t] + Theta * epsilon[t - 1]}
+```
+
+### Représentations graphique
+
+```{r}
+# Représentations
+representations <- list(
+  list(fonction = autoplot, titre = "Graphique de l'échantillon"),
+  list(fonction = \(x) ggAcf(x, lag.max = 30),  titre = "Autocorrélogramme de l'ACF"),
+  list(fonction = \(x) ggPacf(x, lag.max = 30), titre = "Autocorrélogramme partiel de la PACF"))
+
+# Graphiques
+graphiques <- representations |>
+  map(\(r) r$fonction(Y) +
+        ggtitle(r$titre) +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5)))
+```
+
+```{r}
+#| echo: false
+
+graphiques[[1]]
+graphiques[[2]]
+graphiques[[3]]
+```
+
+Le graphique de l’échantillon montre une série qui oscille autour de zéro, sans tendance marquée, mais avec une certaine persistance dans les valeurs. Les chocs semblent avoir un effet sur plusieurs périodes, ce qui suggère une dépendance temporelle.
+
+Le coefficient d’autocorrélation est positif. Il est significativement différent de zéro et décroît progressivement sur plusieurs retards avant de se stabiliser à l’intérieur de l’intervalle de confiance.
+
+D’après l’autocorrélogramme partiel, on observe deux retards significatifs, aux retards 1 et 2, tandis que les coefficients associés aux retards suivants sont proches de zéro et restent à l’intérieur des bandes de confiance.
+
+Ces représentations sont conformes à ce qui est attendu pour un processus ARMA(1,1).

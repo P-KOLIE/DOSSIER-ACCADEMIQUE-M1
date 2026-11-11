@@ -1,0 +1,720 @@
+---
+title: "Projet de Néné Gallé Ly et Patrice PAKO"
+author: "Néné Gallé Ly & Patrice PAKO"
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+editor: visual
+---
+
+## 
+
+# Installation et chargement des Packages
+
+```{r}
+#library(tseries)
+#library(forecast)
+#library(FinTS)
+#library(Metrics)
+#library(TSA)
+
+library(forecast)
+library(urca)
+library(scales)
+library(ggplot2)
+```
+
+# Exercice 1 : Chocs permanents vs chocs transitoires : une analyse exploratoire
+
+On fera ici une simulation et représentation graphiques des séries AR(1) pour des chocs de valeur 20, 40, -20 et -40 à l'observation 100.
+
+```{r}
+
+#les parametres:
+
+T <- 200
+shock_t <- 100
+phis   <- c(0.5, 0.9, 1.0) 
+shocks <- c(20, 40, -20, -40)
+set.seed(123)
+
+# palette de couleur et légende 
+
+cols <- c("phi=0.5" = 1, "phi=0.9" = 2, "phi=1" = 3)
+
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))  # 2x2 
+# graphiques 
+for (s in shocks) {
+
+  # fenêtre vide avec limites fixes 
+  plot(
+    x = 1:T, y = rep(NA, T),
+    xlim = c(1, T),
+    ylim = c(-150, 150),
+    xlab = "t", ylab = "Yt",
+    main = paste0("AR(1) pour un choc de ", s)
+  )
+  abline(v = shock_t, lty = 2)
+
+  for (phi in phis) {
+
+    eps <- rnorm(T, mean = 0, sd = 1)   # N(0,1)
+    eps[shock_t] <- eps[shock_t] + s    # choc intégré à eps_100
+
+    y <- numeric(T)
+    y[1] <- eps[1]                      # init simple
+
+    for (t in 2:T) {
+      y[t] <- phi * y[t - 1] + eps[t]
+    }
+
+    lab <- paste0("phi=", phi)
+    lines(1:T, y, col = cols[lab], lwd = 2)
+  }
+
+  legend(
+    "topleft",
+    legend = names(cols),
+    col = cols,
+    lwd = 2,
+    bty = "n"
+  )
+}
+```
+
+On simule un AR(1) : Yt = φ Yt−1 + εt, avec εt \~ N(0,1), et on introduit un choc à la date t = 100.
+
+On observe des comportements très différents selon la valeur de φ.
+
+Cas φ = 0.5
+
+Le choc provoque un saut à la date 100 mais l’effet disparaît rapidement. La série revient progressivement vers sa moyenne de long terme.
+
+Cela s’explique par le fait que \| φ\| \< 1 : le processus est stationnaire et la mémoire est courte. Le choc est donc transitoire.
+
+Cas φ = 0.9
+
+Le choc est plus persistant : l’écart met plus de temps à se résorber. Cependant, l’effet finit par disparaître.
+
+Le processus reste stationnaire mais présente une forte persistance.
+
+Cas φ = 1 (marche aléatoire)
+
+Le choc à la date 100 modifie définitivement la trajectoire de la série. Après le choc, la série reste durablement décalée vers le haut (ou vers le bas).
+
+Il n’y a aucun retour vers une moyenne de long terme.
+
+Impact d’un choc dans le cas d’une marche aléatoire
+
+Dans le cas φ = 1, le choc a un effet permanent. Chaque innovation s’accumule dans le temps. La trajectoire future dépend définitivement des chocs passés.
+
+# Exercice 2 : TS vs DS : simulation de processus
+
+Dans cette partie nous allons analyser l’aspect visuel de processus de nature differente afin de mieux comprendre leur com- ´ portement. On simule 200 observations .
+
+TS : Yt = 0, 2t + εt
+
+DS (UR) : Yt = 0, 2 + Yt−1 + εt
+
+**Fonctions de simulation et representations graphiques**
+
+```{r}
+set.seed(123)
+
+T <- 200
+drift <- 0.2
+vars <- c(1/4, 1/2, 1)   # Variances 
+
+# Fonction simulation TS & DS avec les mêmes eps
+sim_ts_ds <- function(T, drift, sigma2) {
+
+  eps <- rnorm(T, mean = 0, sd = sqrt(sigma2))  # eps ~ N(0, sigma2)
+  t <- 1:T
+
+  # TS : tendance  + bruit
+  y_ts <- drift * t + eps
+
+  # DS : marche aléatoire avec dérive
+  y_ds <- numeric(T)
+  y_ds[1] <- eps[1]  
+  for (i in 2:T) {
+    y_ds[i] <- drift + y_ds[i - 1] + eps[i]
+  }
+
+  list(t = t, ts = y_ts, ds = y_ds)
+}
+
+# 3 graphiques 
+par(mfrow = c(3, 1), mar = c(4, 4, 3, 1)) # affichage 
+
+for (v in vars) {
+
+  sim <- sim_ts_ds(T = T, drift = drift, sigma2 = v)
+
+  # limites communes sur le graphe
+  ylim <- range(c(sim$ts, sim$ds))
+
+  plot(sim$t, sim$ts, type = "l", lwd = 2, col = 2,
+       ylim = ylim,
+       xlab = "t", ylab = "Yt",
+       main = paste0("TS vs DS - Var = ", v))
+
+  lines(sim$t, sim$ds, lwd = 2, col = 3)
+
+  legend("topleft",
+         legend = c("TS : 0.2 t + eps", "DS : 0.2 + Y(t-1) + eps"),
+         col = c(2, 3), lwd = 2, bty = "n")
+}
+
+
+```
+
+Les trois graphiques présentent la simulation et la comparaison de deux types de processus stochastiques non stationnaires : un processus TS (Trend Stationary) et un processus DS (Difference Stationary), pour trois niveaux de variance des chocs ($\sigma^2 \in \{0.25; 0.5; 1\}$).
+
+**TS (en rouge)** : Répond à l'équation $Y_t = 0.2t + \epsilon_t$. C'est une tendance déterministe. Le processus est stationnaire autour de sa droite de tendance. Les chocs $\epsilon_t$ n'ont qu'un effet temporaire.
+
+**DS (en vert)** : Répond à l'équation $Y_t = 0.2t + Y_{t-1} + \epsilon_t$. C'est une marche aléatoire avec dérive (drift). Ici, chaque choc $\epsilon_t$ est intégré de manière permanente dans le niveau de la série (mémoire infinie).
+
+**Influence de la variance sur la divergence** :
+
+L'analyse visuelle montre que l'écart entre la trajectoire théorique (TS) et la marche aléatoire (DS) s'accentue avec l'augmentation de l'aléa :
+
+**Variance faible (**$\sigma^2 = 0.25$) : Les deux courbes sont très proches et presque confondues. L'effet du "drift" (la pente de 0.2) domine largement les faibles perturbations aléatoires. À ce stade, il est statistiquement difficile de distinguer visuellement la nature du processus.
+
+**Variance intermédiaire (**$\sigma^2 = 0.5$) : On commence à observer un décrochage. La série DS (verte) commence à s'écarter de la tendance linéaire de la série TS (rouge). On remarque que la série verte devient plus "sinueuse" : elle ne revient pas systématiquement vers la ligne rouge après un choc.
+
+**Variance élevée (**$\sigma^2 = 1$) : La divergence est flagrante. La série DS (verte) s'éloigne nettement vers le haut par rapport à la série TS (rouge). Cela illustre parfaitement la propriété de "non-stationnarité" du processus DS : les chocs s'accumulent (somme des erreurs), ce qui peut entraîner la série très loin de sa moyenne théorique. La série TS, bien que plus agitée, reste ancrée sur sa trajectoire rectiligne.
+
+Pour terminer:
+
+L'augmentation de la variance met en relief la différence fondamentale de nature entre les deux processus :
+
+-   **Stabilité vs Instabilité** : Le processus TS est "predictible" à long terme car il est attiré par sa tendance.
+-   **Persistance des chocs** : Le processus DS est imprévisible car il subit des modifications structurelles à chaque choc. Plus la variance est forte, plus la "mémoire" des erreurs passées rend la série DS erratique.
+
+**Note statistique** : Ce graphique illustre pourquoi il est crucial d'effectuer des tests de racine unitaire (comme le test d'Augmented Dickey-Fuller) avant toute modélisation, car une série DS qui semble suivre une tendance (comme ici) pourrait conduire à des régressions fallacieuses si elle est traitée comme une série TS.
+
+# Exercice 3: Partie Regréssion fallacieuse
+
+**Fonction de simulation et résultats**
+
+```{r}
+
+set.seed(123)
+
+T <- 200
+N <- 5000
+
+rejets <- 0
+
+for(i in 1:N){
+
+  # innovations
+  eps_x <- rnorm(T)
+  eps_y <- rnorm(T)
+
+  # marches aléatoires
+  X <- cumsum(eps_x)
+  Y <- cumsum(eps_y)
+
+  # regression
+  modele <- lm(Y ~ X)
+
+  # p-value du coefficient beta1
+  pval <- summary(modele)$coefficients[2,4]
+
+  if(pval < 0.05){
+    rejets <- rejets + 1
+  }
+}
+
+pourcentage <- rejets/N * 100
+pourcentage
+```
+
+**Interprétation du résultat (83.52)**
+
+Le pourcentage de rejet obtenu est 83,52 %, ce qui est beaucoup plus élevé que le niveau théorique de 5 %.
+
+Cela signifie que la régression indique souvent une relation significative entre 𝑋t et Yt, alors que ces deux séries ont été générées indépendamment.
+
+Ce phénomène s'appelle une régression fallacieuse. Il apparaît lorsque l’on applique une régression à des séries non stationnaires, comme les marches aléatoires.
+
+Dans ce cas, les résultats de la régression peuvent être trompeurs et suggérer une relation entre les variables alors qu’il n’en existe pas réellement.
+
+les résultats dépendent surtout du nombre d’observations dans chaque série, et beaucoup moins du nombre de séries générées.
+
+## Réaction suite à une modification de la taille de l'echantillon
+
+**Simulation de base**
+
+```{r}
+set.seed(123)
+simu_reg_fal <- function(n_simul = 5000, n_obs = 200, alpha = 0.05){
+
+  rejets <- 0
+
+  for(i in 1:n_simul){
+
+    X <- cumsum(rnorm(n_obs))
+    Y <- cumsum(rnorm(n_obs))
+
+    modele <- lm(Y ~ X)
+
+    pval <- summary(modele)$coefficients[2,4]
+
+    if(pval < alpha){
+      rejets <- rejets + 1
+    }
+  }
+
+  pourcentage <- rejets / n_simul * 100
+  return(pourcentage)
+}
+
+simu_reg_fal(n_simul = 5000, n_obs = 200, alpha = 0.05)
+```
+
+**Modifier le nombre de simulations**
+
+```{r}
+set.seed(123)
+
+# Base
+simu_reg_fal(5000, 200, 0.05)
+
+# Moins de simulations
+simu_reg_fal(1000, 200, 0.05)
+
+# Plus de simulations
+simu_reg_fal(10000, 200, 0.05)
+```
+
+**Interprétation:**
+
+**Stabilité des résultats**
+
+Quel que soit le nombre de simulations, le taux de rejet reste dans une fourchette cohérente entre 82% et 84%, démontrant une certaine stabilité du phénomène.
+
+**Précision croissante avec N**
+
+-   Avec N = 1000 : résultat = 82.4% (estimation déjà fiable)
+-   Avec N = 5000 : résultat = 83.52% (estimation plus précise)
+-   Avec N = 10000 : résultat = 82.89% (estimation la plus fiable)
+
+**Convergence**
+
+Le résultat semble converger vers une valeur proche de 83%, confirmant les résultats précédents.
+
+**Pour terminer :**
+
+Ces résultats illustrent parfaitement le phénomène de régression fallacieuse (spurious regression) : même avec un grand nombre de simulations (N = 10000), on rejette l'hypothèse nulle d'absence de relation dans plus de 80% des cas, alors que les séries sont indépendantes.
+
+Cela montre que le problème ne vient pas du hasard d'échantillonnage mais bien de la non-stationnarité des séries. Les marches aléatoires générées produisent des co-mouvements apparents qui trompent les tests de significativité standards.
+
+La relative stabilité des résultats entre 1000 et 10000 simulations indique que 5000 simulations suffisent pour obtenir une estimation fiable du taux de rejet dans ce type d'étude Monte Carlo, avec un bon équilibre entre précision et temps de calcul.
+
+# Exercice 4 : Distribution de la statistique de test de Dickey-Fuller
+
+**Le modèle sans constante ni tendance par la méthode de Monte Carlo**
+
+**Calcul des valeurs critiques pour le test DF**
+
+```{r}
+
+set.seed(123)
+
+T <- 100
+N <- 10000
+t_stats <- numeric(N)
+
+for(i in 1:N){
+
+  Y <- cumsum(rnorm(T))     # marche aléatoire
+  dY <- diff(Y)             # première différence
+  Y_lag <- Y[-T]            # Y(t-1)
+
+  modele <- lm(dY ~ Y_lag - 1)
+  t_stats[i] <- summary(modele)$coefficients[1, 3]
+}
+
+quantiles <- quantile(t_stats, c(0.10, 0.05, 0.01))
+quantiles
+```
+
+```{r}
+par(mfrow = c(1,1))   # plein écran
+
+hist(t_stats,
+     breaks = 50,
+     probability = TRUE,
+     col = "lightgray",
+     border = "white",
+     main = "Distribution Monte Carlo des t-stat de Dickey-Fuller (sans constante)",
+     xlab = "Statistique t")
+
+lines(density(t_stats), lwd = 2, col = 2)
+
+abline(v = quantiles[1], col = 4, lty = 2, lwd = 2)
+abline(v = quantiles[2], col = 3, lty = 2, lwd = 2)
+abline(v = quantiles[3], col = 2, lty = 2, lwd = 2)
+
+legend("topright",
+       legend = c("densité", "10%", "5%", "1%"),
+       col = c(2, 4, 3, 2),
+       lwd = 2,
+       lty = c(1,2,2,2),
+       bty = "n")
+```
+
+Les simulations de Monte Carlo donnent des valeurs critiques empiriques égales à -1.630 au seuil de 10 %, -1.988 au seuil de 5 % et -2.633 au seuil de 1 %. Pour rejeter l’hypothèse nulle de racine unitaire, la statistique de Dickey-Fuller doit être inférieure à ces seuils. On retrouve ainsi une zone critique située dans la queue gauche de la distribution. \# Distribution sans constante
+
+## Distribution avec constante egale à 5 et constante égale 10
+
+```{r}
+## Effet d'une constante initiale
+
+par(mfrow = c(1,2))   # 2 graphes côte à côte
+
+simulation_cst <- function(delta0){
+
+  t_stats <- numeric(N)
+
+  for(i in 1:N){
+
+    Y <- numeric(T)
+    Y[1] <- delta0
+
+    for(t in 2:T){
+      Y[t] <- Y[t - 1] + rnorm(1)
+    }
+
+    dY <- diff(Y)
+    Y_lag <- Y[-T]
+
+    modele <- lm(dY ~ Y_lag)
+    t_stats[i] <- summary(modele)$coefficients[2, 3]
+  }
+
+  quantiles <- quantile(t_stats, c(0.10, 0.05, 0.01))
+
+  hist(t_stats,
+       breaks = 50,
+       probability = TRUE,
+       col = "lightgray",
+       border = "white",
+       main = paste("DF avec constante, delta0 =", delta0),
+       xlab = "Statistique t")
+
+  lines(density(t_stats), lwd = 2, col = 2)
+
+  abline(v = quantiles[1], col = 4, lty = 2, lwd = 2)
+  abline(v = quantiles[2], col = 3, lty = 2, lwd = 2)
+  abline(v = quantiles[3], col = 2, lty = 2, lwd = 2)
+}
+
+simulation_cst(5)
+simulation_cst(10)
+```
+
+En introduisant une constante dans la régression de Dickey-Fuller, les valeurs critiques empiriques deviennent plus négatives : -2.590 au seuil de 10 %, -2.886 au seuil de 5 % et -3.476 au seuil de 1 %. Cela montre que la présence d’une constante modifie la distribution de la statistique de test. Le rejet de l’hypothèse nulle de racine unitaire devient alors plus exigeant que dans le cas sans constante.
+
+# Exercice 5 : Analyse de la série temporelle du PIB des USA sur la période 1990-2023
+
+**Import des données et création des TimeSeries**
+
+```{r}
+
+load("C:/Users/patri/Desktop/ECAP/M1/cours/Serie_temp/support4/GDP-US-1990-2023.RData")
+pib_pg <- ts(df_Y_us$PIB, start = c(1990, 1), frequency = 4)
+pib_sp <- window(pib_pg, start = c(1990, 1), end = c(2019, 4))
+```
+
+**Realiser une représentation graphique du PIB US et faites-en un commentaire**
+
+```{r}
+
+### Première sous-période  (1990-2019)
+
+pib_sp_df <- data.frame(
+  date = seq(as.Date("1990-01-01"), by = "quarter", length.out = length(pib_sp)),
+  PIB = as.numeric(pib_sp)
+)
+
+recessions_sp <- data.frame(
+  xmin = as.Date(c("1990-07-01", "2001-03-01", "2007-12-01")),
+  xmax = as.Date(c("1991-03-01", "2001-11-01", "2009-06-01"))
+)
+
+ggplot(pib_sp_df, aes(x = date, y = PIB)) +
+  geom_line(color = "darkred", linewidth = 1) +
+  geom_rect(data = recessions_sp,
+            aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+            inherit.aes = FALSE,
+            fill = "darkgray",
+            alpha = 0.5) +
+  scale_x_date(
+    breaks = seq(as.Date("1990-01-01"), as.Date("2019-12-31"), by = "4 years"),
+    labels = date_format("%Y")
+  ) +
+  labs(title = "Évolution du PIB US (1990-2019) avec récessions",
+       x = "Année",
+       y = "PIB") +
+  theme_minimal()
+```
+
+**Interprétation des périodes de récession (1990-2023)**
+
+L'analyse du PIB américain sur la période 1990-2023 fait apparaître trois grandes phases de récession, identifiées par le NBER (National Bureau of Economic Research) :
+
+**Récession de 1990-1991 (juillet 1990 - mars 1991)**
+
+-   Causes : crise de l'épargne et des prêts (S&L Crisis), hausse des taux d'intérêt pour lutter contre l'inflation, choc pétrolier lié à la guerre du Golfe
+-   Conséquences : le chômage passe de 5,2 % (1989) à 7,8 % (1992)
+
+**Récession de 2001 (mars 2001 - novembre 2001)**
+
+-   Causes : éclatement de la bulle Internet (Dot-com crash), attentats du 11 septembre
+-   Conséquences : le chômage passe de 4 % (2000) à 6 % (2003)
+
+**Grande Récession de 2007-2009 (décembre 2007 - juin 2009)**
+
+-   Causes : crise des subprimes, effondrement du marché immobilier, faillite de Lehman Brothers
+-   Conséquences : contraction du PIB de -4,3 % (pire depuis 1945), chômage atteignant 10 % en 2009, intervention massive de la Fed (taux à 0 %, Quantitative Easing)
+
+**Synthèse**
+
+Ces trois récessions illustrent différents types de chocs économiques : - 1990-1991 : crise bancaire + choc pétrolier - 2001 : crise financière (bulle spéculative) + choc géopolitique - 2007-2009 : crise financière systémique
+
+Malgré ces perturbations, l'économie américaine a toujours rebondi, confirmant sa résilience à long terme.
+
+## Estimer les ACF et PACF de la serie
+
+```{r}
+Acf(pib_sp, main = "ACF du PIB US - 1990 à 2019")
+Pacf(pib_sp, main = "PACF du PIB US - 1990 à 2019")
+```
+
+### Analyse des fonctions d'autocorrélation (ACF et PACF)
+
+Ces deux graphiques (corrélogrammes) permettent de caractériser la structure de dépendance temporelle du PIB US.
+
+### Analyse de l'ACF : la signature de la non-stationnarité
+
+Le graphique de gauche montre des pics d'autocorrélation qui partent de 1 et décroissent de manière très lente et linéaire.
+
+Interprétation : dans une série stationnaire, l'ACF décroît exponentiellement vers zéro (très vite). Ici, la persistance est presque totale. Cela signifie que la valeur du PIB aujourd'hui est extrêmement corrélée à sa valeur passée, même avec un décalage important.
+
+Conclusion technique : cette décroissance lente est le signe caractéristique d'un processus non stationnaire avec une tendance ou une racine unitaire. Le système a une "mémoire longue" : les chocs passés ne s'estompent pas.
+
+### Analyse du PACF : l'identification du processus
+
+Le graphique de droite montre un seul pic massif au premier retard (Lag 1), tandis que tous les autres retards tombent immédiatement dans la zone de confiance (entre les pointillés bleus).
+
+Interprétation : le PACF mesure la corrélation entre Yt et Yt-k en retirant l'influence des retards intermédiaires. Le fait qu'il n'y ait qu'un seul pic significatif indique que toute l'information pertinente pour prédire le PIB de demain est contenue dans le PIB d'aujourd'hui.
+
+Conclusion technique : c'est le profil typique d'un processus AR(1) (autorégressif d'ordre 1).
+
+**Synthèse : vers la marche aléatoire**
+
+En combinant ces deux résultats : - Une ACF qui décroît lentement vers 0 - Une PACF avec un pic unique au premier retard
+
+On peut affirmer que le PIB suit un modèle de marche aléatoire. Mathématiquement, cela s'écrit Yt = φ Yt-1 + εt avec un coefficient φ extrêmement proche de 1.
+
+Ce qu'il faut retenir : ces graphiques justifient pourquoi on ne peut pas travailler sur le PIB "brut". Pour rendre la série stationnaire et pouvoir l'analyser correctement, il faudra passer par les différences premières (étudier la croissance du PIB plutôt que son niveau).
+
+## Test de Dickey-Fuller simple
+
+```{r}
+### Tests Dickey-Fuller
+
+adf_sp_trend <- ur.df(pib_sp, type = "trend", lags = 0)
+summary(adf_sp_trend)
+
+adf_sp_drift <- ur.df(pib_sp, type = "drift", lags = 0)
+summary(adf_sp_drift)
+
+adf_sp_none <- ur.df(pib_sp, type = "none", lags = 0)
+summary(adf_sp_none)
+```
+
+```{r}
+adf_sp_trend_aic <- ur.df(pib_sp, type = "trend", selectlags = "AIC")
+summary(adf_sp_trend_aic)
+
+adf_sp_drift_aic <- ur.df(pib_sp, type = "drift", selectlags = "AIC")
+summary(adf_sp_drift_aic)
+
+adf_sp_none_aic <- ur.df(pib_sp, type = "none", selectlags = "AIC")
+summary(adf_sp_none_aic)
+```
+
+L'application des tests de Dickey-Fuller, selon la procédure séquentielle de Perron, donne des résultats concordants sur l'ensemble des modèles estimés .
+
+**Interprétation commune**
+
+Dans les trois cas, les statistiques calculées restent supérieures aux seuils critiques. Aucune d'entre elles ne se situe dans la zone de rejet, y compris pour le modèle sans constante où la valeur est très éloignée du seuil. Cela signifie que l'hypothèse nulle de présence d'une racine unitaire ne peut être écartée. Pour terminer: Le PIB en niveau est donc caractérisé par une racine unitaire, confirmant sa nature non stationnaire. Cette conclusion s'aligne avec les observations précédentes : tendance croissante persistante, décroissance lente de l'ACF et forte mémoire de la série. La non-stationnarité étant établie, une transformation par différences premières est nécessaire pour obtenir une série stationnaire.
+
+### Test de stationnarité de KPSS
+
+```{r}
+### KPSS
+kpss_sp <- ur.kpss(pib_sp, type = "mu")
+summary(kpss_sp)
+```
+
+**Analyse du test KPSS**
+
+**Résultats obtenus**
+
+Le test de KPSS a été appliqué selon deux spécifications :
+
+-   Test avec constante (type "mu") : statistique = 2,4528
+-   Test avec tendance (type "tau") : statistique = 0,2865
+
+**Interprétation**
+
+Dans les deux cas, les statistiques calculées dépassent largement les valeurs critiques à tous les seuils conventionnels (1 %, 5 % et 10 %). Pour le test en niveau, la valeur est particulièrement élevée (2,45 contre une valeur critique maximale de 0,74 à 1 %). Pour le test avec tendance, la statistique (0,2865) reste également supérieure au seuil de 1 %.
+
+Ces résultats conduisent au rejet sans ambiguïté de l'hypothèse nulle de stationnarité, quelle que soit la spécification retenue.
+
+**Pour terminer :**
+
+L'ensemble des tests (KPSS et Dickey-Fuller) converge vers la même conclusion : la série du PIB américain sur la période étudiée n'est pas stationnaire et présente une racine unitaire. Cette non-stationnarité se manifeste à la fois autour d'une constante et autour d'une tendance déterministe.
+
+Pour travailler sur une série stationnaire, une différenciation sera nécessaire. L'analyse des corrélogrammes et de la tendance observée conforte cette nécessité de transformation.
+
+## Analyse sur période globale (1990 - 2023)
+
+#Visualisation et representation graphique
+
+```{r}
+
+## Visualisation du PIB US de 1990 à 2023
+
+pib_pg_df <- data.frame(
+  date = seq(as.Date("1990-01-01"), by = "quarter", length.out = length(pib_pg)),
+  PIB = as.numeric(pib_pg)
+)
+
+recessions_pg <- data.frame(
+  xmin = as.Date(c("1990-07-01", "2001-03-01", "2007-12-01", "2020-02-01")),
+  xmax = as.Date(c("1991-03-01", "2001-11-01", "2009-06-01", "2020-04-01"))
+)
+
+ggplot(pib_pg_df, aes(x = date, y = PIB)) +
+  geom_line(color = "darkviolet", linewidth = 1) +
+  geom_rect(data = recessions_pg,
+            aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+            inherit.aes = FALSE,
+            fill = "darkgray",
+            alpha = 0.5) +
+  scale_x_date(
+    breaks = seq(as.Date("1990-01-01"), as.Date("2023-12-31"), by = "3 years"),
+    labels = date_format("%Y")
+  ) +
+  labs(title = "Évolution du PIB US (1990-2023) avec récessions",
+       x = "Année",
+       y = "PIB") +
+  theme_minimal()
+```
+
+Le graphique met en évidence une tendance globale à la hausse du PIB américain sur l'ensemble de la période, traduisant une croissance économique de long terme. Plusieurs phases de ralentissement apparaissent lors des récessions, notamment en 1990-1991 (crise bancaire et choc pétrolier), en 2001 (éclatement de la bulle Internet et attentats du 11 septembre), et surtout en 2008-2009 où la baisse est marquée mais progressive, liée à la crise des subprimes et aux faillites bancaires.
+
+L'année 2020 constitue un cas particulier et exceptionnel. On observe une chute très brutale et soudaine du PIB, beaucoup plus rapide que lors des crises précédentes. Cette rupture est directement liée à la pandémie de COVID-19, qui a entraîné un arrêt brutal de l'économie dû aux confinements, une chute massive de la consommation et des investissements, ainsi qu'une explosion du chômage avec plus de 20 millions d'emplois perdus en quelques semaines. Cependant, cette baisse est de courte durée, avec un rebond rapide dès les périodes suivantes grâce à des mesures de soutien exceptionnelles (aides directes aux ménages et entreprises).
+
+Enfin, la tendance croissante du PIB laisse à penser que la série est non stationnaire en niveau. Malgré ces différents chocs, l'économie américaine a toujours montré une capacité de rebond rapide, confirmant sa résilience à long terme.
+
+### Autocorrélogrammes ACF et PACF
+
+```{r}
+Acf(pib_pg, main = "ACF du PIB US - 1990 à 2023")
+Pacf(pib_pg, main = "PACF du PIB US - 1990 à 2023")
+```
+
+### Analyse des autocorrélogrammes
+
+L'analyse de la fonction d'autocorrélation (ACF) montre que les coefficients d'autocorrélation sont tous significativement différents de zéro, même pour des retards élevés. Cette décroissance lente et la significativité persistante des autocorrélations confirment une forte dépendance temporelle du PIB et indiquent clairement que la série est non stationnaire en niveau.
+
+La fonction d'autocorrélation partielle (PACF) présente quant à elle un seul coefficient significatif au premier retard (lag 1). Ce profil est caractéristique d'une dynamique de type autorégressive d'ordre 1 (AR(1)). Combiné avec l'ACF qui décroît lentement, ce résultat confirme la non-stationnarité de la série en niveau et sa forte persistance.
+
+Il est à noter que nous n'observons aucune différence significative par rapport aux autocorrélogrammes de la série représentant la sous-période allant jusqu'à 2019. La structure de dépendance temporelle du PIB reste donc stable, même après l'intégration des années récentes.
+
+### Test de Dickey-Fuller
+
+```{r}
+adf_pg_trend <- ur.df(pib_pg, type = "trend", lags = 0)
+summary(adf_pg_trend)
+
+adf_pg_drift <- ur.df(pib_pg, type = "drift", lags = 0)
+summary(adf_pg_drift)
+
+adf_pg_none <- ur.df(pib_pg, type = "none", lags = 0)
+summary(adf_pg_none)
+```
+
+Quel que soit le modèle considéré (avec tendance et constante, avec constante seulement, ou sans constante ni tendance), les tests de Dickey-Fuller sur la période 1990-2023 aboutissent à la même conclusion.
+
+Dans le modèle avec tendance et constante, la statistique de test (t = -2,56) reste supérieure à la valeur critique à 5 % (-3,43). L'examen des valeurs critiques associées (tau3, phi2, phi3) indique que l'hypothèse de racine unitaire ne peut être rejetée, bien que la présence d'une tendance déterministe soit probable. La tendance et la constante ne sont pas significatives conjointement.
+
+Le modèle avec constante (sans tendance) donne une statistique de test t = 0,58, largement supérieure à la valeur critique de -2,88. Ce résultat confirme la non-stationnarité de la série et la présence d'une racine unitaire.
+
+Enfin, le modèle sans constante ni tendance produit une statistique t = 5,35, très éloignée du seuil critique de -1,95. Cette valeur positive et élevée renforce l'évidence d'une racine unitaire.
+
+Dans tous les cas, les statistiques de test ne sont pas suffisamment négatives pour rejeter l'hypothèse nulle. La série du PIB en niveau est donc non stationnaire et contient une racine unitaire, quel que soit le modèle de test retenu.
+
+### Test de Dickey‑Fuller augmenté
+
+```{r}
+adf_pg_trend_aic <- ur.df(pib_pg, type = "trend", selectlags = "AIC")
+summary(adf_pg_trend_aic)
+
+adf_pg_drift_aic <- ur.df(pib_pg, type = "drift", selectlags = "AIC")
+summary(adf_pg_drift_aic)
+
+adf_pg_none_aic <- ur.df(pib_pg, type = "none", selectlags = "AIC")
+summary(adf_pg_none_aic)
+```
+
+Les tests ADF sur la période 1990-2023 confirment les résultats obtenus sur la sous-période :
+
+-   Modèle avec tendance : t = -1,69 \> -3,43 (valeur critique à 5 %)
+-   Modèle avec constante : t = 0,53 \> -2,88
+-   Modèle sans constante : t = 5,21 \> -1,95
+
+Dans toutes les spécifications, les statistiques de test restent supérieures aux valeurs critiques, même après correction de l'autocorrélation par l'ajout de retards (sélectionnés via AIC). L'hypothèse nulle de racine unitaire ne peut donc être rejetée.
+
+**Pour terminer :**
+
+Les tests de Dickey-Fuller (simples et augmentés) convergent vers le même résultat : la série du PIB sur 1990-2023 présente une tendance, est non stationnaire et contient une racine unitaire, à l'image de ce qui avait été observé sur la sous-période 1990-2019.
+
+### Test de stationnarité KPSS (1990–2023)
+
+```{r}
+kpss_pg <- ur.kpss(pib_pg, type = "mu")
+summary(kpss_pg)
+```
+
+## Test KPSS (période 1990-2023)
+
+Le test de KPSS confirme la non-stationnarité de la série sur l'ensemble de la période :
+
+-   Test avec constante (niveau) : statistique = 2,45 (p-value \< 0,01), supérieure à la valeur critique à 1 %. L'hypothèse de stationnarité autour d'une constante est rejetée.
+-   Test avec tendance : statistique = 0,29 (p-value \< 0,01), également supérieure à la valeur critique à 1 %. La série n'est pas stationnaire, même autour d'une tendance déterministe.
+
+Pour terminer: Comme pour la sous-période 1990-2019, la statistique de test (2,8352) est largement supérieure aux valeurs critiques à tous les seuils. L'hypothèse nulle de stationnarité est donc rejetée.
+
+Ces résultats confirment que la série du PIB sur 1990-2023 présente une non-stationnarité marquée et contient une racine unitaire, en cohérence avec les tests de Dickey-Fuller, l'analyse graphique et les autocorrélogrammes.
+
+### Conclusion générale
+
+L'inclusion de la période de la crise du COVID-19 ne modifie pas les conclusions établies sur la sous-période 1990-2019. Les analyses menées sur les deux périodes aboutissent à des résultats identiques.
+
+Quelle que soit la période considérée, la série du PIB américain est caractérisée par :
+
+-   Une non-stationnarité marquée
+-   La présence d'une racine unitaire
+-   Une tendance déterministe observable
+
+Ces résultats confirment la nécessité de différencier la série pour la rendre stationnaire avant toute modélisation.

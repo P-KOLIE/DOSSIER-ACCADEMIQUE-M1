@@ -1,0 +1,582 @@
+---
+title: "Support 4"
+author: "Patrice Kolié"
+format: pdf
+toc: true
+number-sections: true
+editor: visual
+---
+
+# Exercice 1 :
+
+## Chargement de packages et visualisation
+
+```{r}
+#| message: FALSE
+library(readxl)
+library(tseries)
+library(forecast) 
+library(FinTS)
+library(Metrics)    
+library(TSA)      
+library(ggplot2)  
+library(dplyr) 
+```
+
+```{r}
+bdd <- read_excel("c:/Users/patri/Desktop/ECAP/M1/cours/Serie_temp/support5/support5/wheat_support5_STU.xlsx")
+bdd$date <-  as.Date(bdd$date)
+
+ggplot(bdd, aes(x = date, y = return)) +
+  geom_line(color = "black", linewidth = 0.8) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Série temporelle des rendements du blé (2006-2022)",
+       x = "Date",
+       y = "Rendement") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+```
+
+### Interprétation:
+
+Absence de tendance : La série oscille autour de zéro sans dérive visible Volatilité variable (clustering) : On observe des périodes de forte volatilité (2008-2010, 2020-2022) alternant avec des phases plus calmes Symétrie : Les variations positives et négatives semblent équilibrées Pics extrêmes : Plusieurs chocs importants (\>10% en valeur absolue), notamment autour de 2008 et 2022 Caractéristique typique : Cela ressemble à une série de rendements financiers stationnaire
+
+## Test de stationnarité
+
+```{r}
+# Test ADF (Augmented Dickey-Fuller)
+adf.test(bdd$return)
+```
+
+### Interprétation :
+
+Hypothèses : H0 : La série possède une racine unitaire (non stationnaire) H1 : La série est stationnaire
+
+p-value : 0.01 (\< 0.05) , on rejette H0 au seuil de 1% La série des rendements est stationnaire Cela confirme l'observation graphique : pas besoin de différencier la série On peut donc procéder directement à la modélisation ARMA (sans composante I d'intégration)
+
+# le modèle ARMA
+
+## ACF et PACF
+
+```{r}
+# ACF
+acf(bdd$return, main = "ACF des rendements du blé", lag.max = 35)
+```
+
+```{r}
+# PACF
+pacf(bdd$return, main = "PACF des rendements du blé", lag.max = 35)
+```
+
+### Interprétation (ACF et PACF): 
+
+L'examen des corrélogrammes révèle une structure très faible dans la série des rendements du blé. Sur l'ACF, la quasi-totalité des coefficients d'autocorrélation restent à l'intérieur des bandes de confiance à 95%, avec seulement quelques valeurs isolées qui dépassent légèrement ces seuils. Ces dépassements sont marginaux et ne suggèrent aucune structure systématique d'autocorrélation. L'absence de décroissance progressive ou de pattern régulier indique qu'il n'y a pas de composante MA (moyenne mobile) significative dans la série.
+
+Du côté de la PACF, on observe également une absence de structure claire. Quelques pics isolés apparaissent, mais ils ne présentent pas la décroissance exponentielle caractéristique d'un processus AR. Ces valeurs semblent plutôt relever de fluctuations aléatoires plutôt que d'une véritable dépendance autoregressive. L'absence de valeurs significatives aux premiers lags (notamment lag 1) suggère qu'un modèle AR d'ordre élevé ne serait pas justifié.
+
+D'un point de vue théorique, cette configuration est cohérente avec l'hypothèse d'efficience des marchés financiers : les rendements d'actifs suivent généralement un processus proche du bruit blanc, c'est-à-dire une série purement aléatoire sans mémoire significative. Les corrélogrammes suggèrent donc qu'un modèle ARMA(0,0), soit un simple bruit blanc, serait le plus adapté à ces données.
+
+## Sélection automatique du modèle
+
+```{r}
+modele_auto <- auto.arima(bdd$return, seasonal = FALSE, max.p = 5, max.q = 5)
+summary(modele_auto)
+```
+
+### Interprétation :
+
+La fonction auto.arima() sélectionne un ARMA(0,0) avec moyenne nulle, c'est-à-dire un bruit blanc pur. Cela confirme l'analyse des corrélogrammes : aucune structure AR ni MA significative n'est détectée dans la série. Les rendements du blé semblent suivre un processus purement aléatoire, conforme à l'hypothèse d'efficience des marchés.
+
+Bien que les corrélogrammes suggèrent une structure proche du bruit blanc, nous retenons une spécification AR(1) conformément aux exigences du cours. Ce modèle parcimonieux permet de capturer une éventuelle mémoire de court terme dans les rendements, même si elle est faible. Cette spécification sera utilisée pour toutes les prévisions dans la suite de l'exercice.
+
+## Estimation de quelques modèles
+
+```{r}
+set.seed(123)
+
+# Initialisation
+n <- nrow(bdd)
+window_10 <- 2520  # 10 ans ≈ 252*10 jours
+window_5 <- 1260   # 5 ans
+window_3 <- 756    # 3 ans
+
+# Matrice pour stocker les résultats
+resultats <- data.frame(
+  date = bdd$date[(window_10 + 1):n],
+  realisation = bdd$return[(window_10 + 1):n],
+  RW = NA,
+  phi_5 = NA,
+  phi_3 = NA,
+  A5_5 = NA,
+  A3_5 = NA
+)
+
+# Boucle de prévision
+for (i in 1:nrow(resultats)) {
+  idx <- window_10 + i
+  
+  # Marche aléatoire : dernière valeur observée
+  resultats$RW[i] <- bdd$return[idx - 1]
+  
+  # Estimation AR(1) avec 5 ans de données
+  phi_5 <- coef(arima(bdd$return[(idx - window_5):(idx - 1)], order = c(1,0,0)))[1]
+  resultats$phi_5[i] <- phi_5
+  
+  # Estimation AR(1) avec 3 ans de données
+  phi_3 <- coef(arima(bdd$return[(idx - window_3):(idx - 1)], order = c(1,0,0)))[1]
+  resultats$phi_3[i] <- phi_3
+  
+  # Prévisions à t+5
+  resultats$A5_5[i] <- (phi_5^5) * bdd$return[idx - 1]
+  resultats$A3_5[i] <- (phi_3^5) * bdd$return[idx - 1]
+}
+
+
+head(resultats)
+```
+
+### Interprétation : 
+
+Les coefficients phi_5 et phi_3 sont très proches de zéro (entre 0.006 et 0.014), ce qui confirme la faible autocorrélation. Les prévisions à t+5 (A5_5 et A3_5) sont donc quasiment nulles (de l'ordre de 10\^-12), car phi\^5 devient extrêmement petit. C'est cohérent avec un AR(1) faiblement autocorrélé : les prévisions convergent rapidement vers zéro.
+
+## Graphique de l'évolution de phi_5 et phi_3
+
+```{r}
+# Graphique de l'évolution de phi_5
+plot(resultats$date, resultats$phi_5, type = "l", col = "blue", 
+     main = "Évolution de phi (fenêtre 5 ans)", ylab = "phi_5", xlab = "Date")
+abline(h = 0, col = "red", lty = 2)
+
+```
+
+```{r}
+# Graphique de l'évolution de phi_3
+plot(resultats$date, resultats$phi_3, type = "l", col = "green", 
+     main = "Évolution de phi (fenêtre 3 ans)", ylab = "phi_3", xlab = "Date")
+abline(h = 0, col = "red", lty = 2)
+```
+
+### Interprétation:
+
+Fenêtre 5 ans (bleu) : Le coefficient phi_5 oscille autour de zéro avec une amplitude modérée (-0.04 à 0.06). La série est relativement stable avec un effet de lissage prononcé. On observe une période positive entre 2017-2020, puis une baisse progressive jusqu'à devenir négatif en 2022.
+
+Fenêtre 3 ans (vert) : Le coefficient phi_3 présente une volatilité nettement plus élevée (-0.10 à 0.10). La fenêtre plus courte capte mieux les variations locales et réagit plus fortement aux chocs récents. Chute marquée pendant la période 2020-2022, reflétant un changement structurel dans les données.
+
+Interprétation : La fenêtre de 5 ans lisse les fluctuations et fournit des estimations plus stables, tandis que la fenêtre de 3 ans est plus réactive mais aussi plus volatile. Aucune des deux ne montre de coefficient significativement éloigné de zéro, confirmant la faible persistance des rendements.
+
+## Évaluation des performances
+
+### Test de Mincer-Zarnowitz
+
+On teste si les prévisions sont non biaisées via la régression : Réalisation = α + β × Prévision Un modèle optimal doit avoir α = 0 et β = 1.
+
+```{r}
+# Test Mincer-Zarnowitz pour chaque modèle
+mz_A5 <- lm(realisation ~ A5_5, data = resultats)
+mz_A3 <- lm(realisation ~ A3_5, data = resultats)
+mz_RW <- lm(realisation ~ RW, data = resultats)
+
+# Résultats
+summary(mz_A5)
+summary(mz_A3)
+summary(mz_RW)
+```
+
+#### Résultats et Interprétation : Modèle A5 (5 ans, horizon t+5)
+
+α = 0.000226 (p = 0.605) → non significativement différent de 0 β = -110,900 (p = 0.285) → non significativement différent de 1, mais valeur aberrante R² ajusté = 0.00008 → pouvoir explicatif quasi nul Conclusion : prévisions non biaisées mais inutiles
+
+Modèle A3 (3 ans, horizon t+5) :
+
+α = 0.000211 (p = 0.629) → non significativement différent de 0 β = -11,430 (p = 0.175) → non significativement différent de 1 R² ajusté = 0.00044 → très faible pouvoir explicatif Conclusion : légèrement meilleur que A5 mais reste très faible
+
+Marche aléatoire (RW) :
+
+α = 0.000221 (p = 0.613) → non significativement différent de 0 β = 0.0127 (p = 0.580) → non significativement différent de 1 R² ajusté = -0.00037 → négatif, pire qu'un modèle sans prédicteur Conclusion : aussi mauvais que les autres
+
+##### Synthèse Mincer-Zarnowitz : 
+
+Aucun modèle ne surperforme. Les trois ont un R² proche de zéro. Les prévisions AR(1) à t+5 sont équivalentes à la marche aléatoire. Le modèle A3 a un R² légèrement supérieur.
+
+## Test de Diebold-Mariano
+
+```{r}
+# Calcul des erreurs
+err_A5 <- resultats$realisation - resultats$A5_5
+err_A3 <- resultats$realisation - resultats$A3_5
+err_RW <- resultats$realisation - resultats$RW
+
+# Fonctions de perte
+mse_A5 <- err_A5^2
+mse_A3 <- err_A3^2
+mse_RW <- err_RW^2
+
+mae_A5 <- abs(err_A5)
+mae_A3 <- abs(err_A3)
+mae_RW <- abs(err_RW)
+
+# Différences de perte (modèle - RW)
+diff_mse_A5 <- mse_A5 - mse_RW
+diff_mse_A3 <- mse_A3 - mse_RW
+
+diff_mae_A5 <- mae_A5 - mae_RW
+diff_mae_A3 <- mae_A3 - mae_RW
+
+# Statistique DM
+dm_mse_A5 <- mean(diff_mse_A5) / sd(diff_mse_A5)
+dm_mse_A3 <- mean(diff_mse_A3) / sd(diff_mse_A3)
+
+dm_mae_A5 <- mean(diff_mae_A5) / sd(diff_mae_A5)
+dm_mae_A3 <- mean(diff_mae_A3) / sd(diff_mae_A3)
+
+# Résultats
+cat("DM (MSE) - A5 vs RW:", dm_mse_A5, "\n")
+cat("DM (MSE) - A3 vs RW:", dm_mse_A3, "\n")
+cat("DM (MAE) - A5 vs RW:", dm_mae_A5, "\n")
+cat("DM (MAE) - A3 vs RW:", dm_mae_A3, "\n")
+```
+
+### Résultat et interprétation :
+
+Principe : On compare les pertes de prévision entre chaque modèle AR(1) et la marche aléatoire (RW). Une statistique DM négative indique que le modèle AR performe mieux que RW. Résultats : MSE (Mean Squared Error) :
+
+A5 vs RW : DM = -0.269 A3 vs RW : DM = -0.269
+
+MAE (Mean Absolute Error) :
+
+A5 vs RW : DM = -0.387 A3 vs RW : DM = -0.387
+
+Interprétation : Les statistiques DM sont toutes négatives et proches de zéro (valeurs critiques théoriques ≈ ±1.96 au seuil de 5%). Cela signifie qu'aucun modèle ne diffère significativement de la marche aléatoire. Les performances sont statistiquement équivalentes. Les modèles A5 et A3 sont quasi identiques entre eux, confirmant que l'horizon de fenêtre roulante n'impacte pas la qualité prédictive pour cet horizon t+5.
+
+## Conclusion générale
+
+### Quel modèle est le plus performant ? 
+
+Selon Mincer-Zarnowitz : Le modèle A3 présente un R² ajusté légèrement supérieur (0.00044 vs 0.00008), mais reste très faible. Aucun modèle ne satisfait le critère d'optimalité (α=0, β=1). Selon Diebold-Mariano : Les modèles A5 et A3 sont statistiquement équivalents à la marche aléatoire. Aucune différence significative sous MSE ou MAE. Conclusion : Pour des prévisions à horizon t+5, aucun modèle AR(1) ne surperforme la marche aléatoire. Les rendements du blé suivent un processus proche du bruit blanc, confirmant l'hypothèse d'efficience des marchés. Si on devait choisir, le modèle A3 est marginalement meilleur selon le critère du R², mais la différence est négligeable en pratique.
+
+# Exercice 2 : Modèle HAR sur la volatilité réalisée (KOSPI 200)
+
+# Partie 1 :
+
+## Chargement des données et création des variables HAR
+
+```{r}
+# Chargement
+kospi <- read_excel("c:/Users/patri/Desktop/ECAP/M1/cours/Serie_temp/support5/support5/Kospi_STU.xls")
+
+# Vérifier les colonnes
+head(kospi)
+names(kospi)
+```
+
+On doit créer les moyennes sur 5 et 22 jours pour estimer le modèle HAR(1,5,22).
+
+```{r}
+library(zoo)  # Pour les moyennes mobiles
+
+# Renommer pour clarté
+kospi$RV <- kospi$RV5
+
+# Créer les variables HAR
+kospi$RV_lag1 <- lag(kospi$RV, 1)  # RV à t-1
+kospi$RV_5 <- rollmean(kospi$RV, k = 5, fill = NA, align = "right")  # Moyenne 5 jours
+kospi$RV_22 <- rollmean(kospi$RV, k = 22, fill = NA, align = "right")  # Moyenne 22 jours
+
+# Même chose pour MedRV
+kospi$MedRV_lag1 <- lag(kospi$MedRV, 1)
+kospi$MedRV_5 <- rollmean(kospi$MedRV, k = 5, fill = NA, align = "right")
+kospi$MedRV_22 <- rollmean(kospi$MedRV, k = 22, fill = NA, align = "right")
+
+# Supprimer les NA
+kospi_clean <- na.omit(kospi)
+
+# Vérifier
+head(kospi_clean)
+```
+
+## Estimation du modèle HAR(1,5,22)
+
+### HAR sur RV (Realized Variance)
+
+```{r}
+# Modèle HAR(1,5,22) sur RV
+har_rv <- lm(RV ~ RV_lag1 + RV_5 + RV_22, data = kospi_clean)
+summary(har_rv)
+
+```
+
+### HAR sur MedRV (Median Realized Variance)
+
+```{r}
+# Modèle HAR(1,5,22) sur MedRV
+har_medrv <- lm(MedRV ~ MedRV_lag1 + MedRV_5 + MedRV_22, data = kospi_clean)
+summary(har_medrv)
+```
+
+#### Interprétation :
+
+Intercept : 9.55e-06 (p = 0.005) → volatilité de base faible mais significative RV_lag1 : -0.054 (p = 0.006) → effet quotidien négatif et significatif (inhabituel) RV_5 : 1.099 (p \< 0.001) → effet hebdomadaire très fort et positif, le plus important RV_22 : -0.102 (p \< 0.001) → effet mensuel négatif et significatif
+
+R² ajusté = 0.6975 → Le modèle explique 69.75% de la variance, très bon pouvoir explicatif. HAR sur MedRV (Median Realized Variance) Coefficients :
+
+Intercept : 5.81e-06 (p = 0.0009) → volatilité de base significative MedRV_lag1 : -0.027 (p = 0.172) → effet quotidien non significatif MedRV_5 : 1.074 (p \< 0.001) → effet hebdomadaire dominant MedRV_22 : -0.106 (p \< 0.001) → effet mensuel négatif significatif
+
+R² ajusté = 0.7295 → Le modèle explique 72.95% de la variance, meilleur que RV. Synthèse niveau La composante hebdomadaire (5 jours) domine largement. Les composantes quotidiennes et mensuelles ont des coefficients négatifs, suggérant des effets de mean-reversion. Le modèle MedRV a un meilleur R² (72.95% vs 69.75%).
+
+## Transformations (racine carrée et logarithme)
+
+On teste maintenant les mêmes modèles sur :
+
+Volatilité réalisée (racine carrée de la variance) Log-volatilité (logarithme)
+
+```{r}
+# Créer les transformations
+kospi_clean$sqrtRV <- sqrt(kospi_clean$RV)
+kospi_clean$logRV <- log(kospi_clean$RV)
+kospi_clean$sqrtMedRV <- sqrt(kospi_clean$MedRV)
+kospi_clean$logMedRV <- log(kospi_clean$MedRV)
+
+# Variables HAR pour sqrt
+kospi_clean$sqrtRV_lag1 <- lag(kospi_clean$sqrtRV, 1)
+kospi_clean$sqrtRV_5 <- rollmean(kospi_clean$sqrtRV, k = 5, fill = NA, align = "right")
+kospi_clean$sqrtRV_22 <- rollmean(kospi_clean$sqrtRV, k = 22, fill = NA, align = "right")
+
+kospi_clean$sqrtMedRV_lag1 <- lag(kospi_clean$sqrtMedRV, 1)
+kospi_clean$sqrtMedRV_5 <- rollmean(kospi_clean$sqrtMedRV, k = 5, fill = NA, align = "right")
+kospi_clean$sqrtMedRV_22 <- rollmean(kospi_clean$sqrtMedRV, k = 22, fill = NA, align = "right")
+
+# Variables HAR pour log
+kospi_clean$logRV_lag1 <- lag(kospi_clean$logRV, 1)
+kospi_clean$logRV_5 <- rollmean(kospi_clean$logRV, k = 5, fill = NA, align = "right")
+kospi_clean$logRV_22 <- rollmean(kospi_clean$logRV, k = 22, fill = NA, align = "right")
+
+kospi_clean$logMedRV_lag1 <- lag(kospi_clean$logMedRV, 1)
+kospi_clean$logMedRV_5 <- rollmean(kospi_clean$logMedRV, k = 5, fill = NA, align = "right")
+kospi_clean$logMedRV_22 <- rollmean(kospi_clean$logMedRV, k = 22, fill = NA, align = "right")
+
+# Nettoyer les NA
+kospi_clean2 <- na.omit(kospi_clean)
+
+# Modèles HAR sur transformations
+har_sqrtRV <- lm(sqrtRV ~ sqrtRV_lag1 + sqrtRV_5 + sqrtRV_22, data = kospi_clean2)
+har_logRV <- lm(logRV ~ logRV_lag1 + logRV_5 + logRV_22, data = kospi_clean2)
+
+har_sqrtMedRV <- lm(sqrtMedRV ~ sqrtMedRV_lag1 + sqrtMedRV_5 + sqrtMedRV_22, data = kospi_clean2)
+har_logMedRV <- lm(logMedRV ~ logMedRV_lag1 + logMedRV_5 + logMedRV_22, data = kospi_clean2)
+
+# Afficher les R²
+cat("R² ajusté RV (niveau):", summary(har_rv)$adj.r.squared, "\n")
+cat("R² ajusté RV (sqrt):", summary(har_sqrtRV)$adj.r.squared, "\n")
+cat("R² ajusté RV (log):", summary(har_logRV)$adj.r.squared, "\n\n")
+
+cat("R² ajusté MedRV (niveau):", summary(har_medrv)$adj.r.squared, "\n")
+cat("R² ajusté MedRV (sqrt):", summary(har_sqrtMedRV)$adj.r.squared, "\n")
+cat("R² ajusté MedRV (log):", summary(har_logMedRV)$adj.r.squared, "\n")
+```
+
+### Interprétation : 
+
+#### Quel est le meilleur modèle ?
+
+Classement par pouvoir explicatif (R² ajusté décroissant) :
+
+MedRV en log : 80.68% → MEILLEUR MODÈLE RV en log : 80.33% MedRV en sqrt : 78.84% RV en sqrt : 77.84% MedRV en niveau : 72.95% RV en niveau : 69.75%
+
+## Conclusions :
+
+La transformation logarithmique améliore systématiquement le pouvoir explicatif (+10 points de R² vs niveau) MedRV surperforme RV dans toutes les spécifications (plus robuste aux valeurs extrêmes) Le meilleur modèle est HAR(1,5,22) sur log(MedRV) avec 80.67% de variance expliquée La log-transformation stabilise la variance et linéarise mieux la relation de persistance
+
+### Détails du meilleur modèle
+
+Pour compléter ton analyse, affiche les coefficients du meilleur modèle :
+
+```{r}
+summary(har_logMedRV)
+
+```
+
+#### Interprétation : Meilleur modèle HAR - log(MedRV)
+
+Intercept : -0.254 (p = 0.004) → niveau de base de la log-volatilité significatif logMedRV_lag1 : -0.0001 (p = 0.996) → composante quotidienne non significative logMedRV_5 : 1.036 (p \< 0.001) → composante hebdomadaire très significative et dominante logMedRV_22 : -0.063 (p = 0.004) → composante mensuelle négative et significative (effet de mean-reversion)
+
+##### Performance :
+
+R² ajusté = 0.8068 → explique 80.68% de la variance de la log-volatilité F-statistic = 4311 (p \< 0.001) → modèle globalement très significatif
+
+##### Interprétation : 
+
+La volatilité est principalement pilotée par sa moyenne hebdomadaire. L'effet quotidien est négligeable, tandis que la composante mensuelle exerce un effet correctif négatif (retour vers la moyenne de long terme). La transformation logarithmique améliore considérablement l'ajustement en stabilisant la variance des résidus et en linéarisant la dynamique de persistance. Ce modèle est optimal parmi toutes les spécifications testées.
+
+# Partie 2 : Prévisions avec schéma récursif
+
+Maintenant on réalise des prévisions à 1 jour (t+1) en :
+
+Estimant le modèle sur 2000-2006 Étendant progressivement l'échantillon (recursive scheme) jusqu'à 2012 Comparant RV vs MedRV (en niveau, sqrt, log) avec le test de Diebold-Mariano sous la perte QLIKE
+
+QLIKE loss function: $\text{QLIKE} = \ln(\hat{Y}_{t+1}) + \frac{Y_{t+1}}{\hat{Y}_{t+1}}$
+
+## ndefinedCode pour les prévisions récursives
+
+```{r}
+# Convertir Date en format Date (pas POSIXct)
+kospi_clean2$Date <- as.Date(kospi_clean2$Date)
+
+# Vérifier la plage de dates
+range(kospi_clean2$Date)
+
+# Trouver l'index de coupure
+date_split <- as.Date("2006-12-31")
+idx_split <- max(which(kospi_clean2$Date <= date_split))
+print(paste("Index de coupure:", idx_split))
+print(paste("Total observations:", nrow(kospi_clean2)))
+print(paste("Nombre de prévisions:", nrow(kospi_clean2) - idx_split))
+```
+
+```{r}
+# Initialiser les vecteurs de prévisions
+n_forecasts <- nrow(kospi_clean2) - idx_split
+
+forecasts <- data.frame(
+  date = kospi_clean2$Date[(idx_split + 1):nrow(kospi_clean2)],
+  real_RV = kospi_clean2$RV[(idx_split + 1):nrow(kospi_clean2)],
+  real_MedRV = kospi_clean2$MedRV[(idx_split + 1):nrow(kospi_clean2)],
+  pred_RV = NA,
+  pred_MedRV = NA,
+  pred_sqrtRV = NA,
+  pred_sqrtMedRV = NA,
+  pred_logRV = NA,
+  pred_logMedRV = NA
+)
+
+# Boucle de prévision récursive (prendra quelques secondes)
+cat("Début des prévisions récursives...\n")
+for (i in 1:n_forecasts) {
+  # Afficher progression tous les 200 itérations
+  if (i %% 200 == 0) cat("Prévision", i, "/", n_forecasts, "\n")
+  
+  # Échantillon d'estimation
+  train_data <- kospi_clean2[1:(idx_split + i - 1), ]
+  
+  # Estimer les 6 modèles
+  m_rv <- lm(RV ~ RV_lag1 + RV_5 + RV_22, data = train_data)
+  m_medrv <- lm(MedRV ~ MedRV_lag1 + MedRV_5 + MedRV_22, data = train_data)
+  m_sqrtRV <- lm(sqrtRV ~ sqrtRV_lag1 + sqrtRV_5 + sqrtRV_22, data = train_data)
+  m_sqrtMedRV <- lm(sqrtMedRV ~ sqrtMedRV_lag1 + sqrtMedRV_5 + sqrtMedRV_22, data = train_data)
+  m_logRV <- lm(logRV ~ logRV_lag1 + logRV_5 + logRV_22, data = train_data)
+  m_logMedRV <- lm(logMedRV ~ logMedRV_lag1 + logMedRV_5 + logMedRV_22, data = train_data)
+  
+  # Observation pour prévision
+  test_data <- kospi_clean2[idx_split + i, ]
+  
+  # Prévisions
+  forecasts$pred_RV[i] <- predict(m_rv, newdata = test_data)
+  forecasts$pred_MedRV[i] <- predict(m_medrv, newdata = test_data)
+  forecasts$pred_sqrtRV[i] <- predict(m_sqrtRV, newdata = test_data)^2
+  forecasts$pred_sqrtMedRV[i] <- predict(m_sqrtMedRV, newdata = test_data)^2
+  forecasts$pred_logRV[i] <- exp(predict(m_logRV, newdata = test_data))
+  forecasts$pred_logMedRV[i] <- exp(predict(m_logMedRV, newdata = test_data))
+}
+
+cat("Prévisions terminées !\n")
+
+# Vérifier
+head(forecasts)
+summary(forecasts)
+```
+
+## Calcul de la perte QLIKE et test de Diebold-Mariano
+
+La fonction QLIKE est définie par : $\text{QLIKE} = \ln(\hat{Y}_{t+1}) + \frac{Y_{t+1}}{\hat{Y}_{t+1}}$
+
+```{r}
+# Fonction QLIKE
+qlike <- function(y_real, y_pred) {
+  log(y_pred) + y_real / y_pred
+}
+
+# Calculer QLIKE pour chaque modèle
+forecasts$qlike_RV <- qlike(forecasts$real_RV, forecasts$pred_RV)
+forecasts$qlike_MedRV <- qlike(forecasts$real_MedRV, forecasts$pred_MedRV)
+forecasts$qlike_sqrtRV <- qlike(forecasts$real_RV, forecasts$pred_sqrtRV)
+forecasts$qlike_sqrtMedRV <- qlike(forecasts$real_MedRV, forecasts$pred_sqrtMedRV)
+forecasts$qlike_logRV <- qlike(forecasts$real_RV, forecasts$pred_logRV)
+forecasts$qlike_logMedRV <- qlike(forecasts$real_MedRV, forecasts$pred_logMedRV)
+
+# Moyenne des pertes QLIKE
+mean_qlike <- c(
+  RV_niveau = mean(forecasts$qlike_RV),
+  MedRV_niveau = mean(forecasts$qlike_MedRV),
+  RV_sqrt = mean(forecasts$qlike_sqrtRV),
+  MedRV_sqrt = mean(forecasts$qlike_sqrtMedRV),
+  RV_log = mean(forecasts$qlike_logRV),
+  MedRV_log = mean(forecasts$qlike_logMedRV)
+)
+
+print(mean_qlike)
+```
+
+MedRV niveau = -8.6468
+
+MedRV surperforme systématiquement RV (≈0.32 points de QLIKE) Le niveau (variance brute) donne les meilleures prévisions QLIKE, contrairement au R² où le log était optimal Les transformations sqrt et log dégradent légèrement la performance prédictive Le meilleur modèle pour la prévision est MedRV en niveau
+
+## Test de Diebold-Mariano
+
+On compare les pertes 2 à 2. Les comparaisons clés :
+
+MedRV niveau vs RV niveau (meilleurs de chaque mesure) MedRV niveau vs MedRV log (niveau vs log) RV niveau vs RV log (niveau vs log)
+
+```{r}
+# Test DM : comparaison de deux séries de pertes
+dm_test <- function(loss1, loss2) {
+  diff <- loss1 - loss2
+  dm_stat <- mean(diff) / (sd(diff) / sqrt(length(diff)))
+  p_value <- 2 * (1 - pnorm(abs(dm_stat)))  # Test bilatéral
+  return(list(DM = dm_stat, p_value = p_value))
+}
+
+# Comparaisons clés
+cat("=== Tests de Diebold-Mariano (QLIKE) ===\n\n")
+
+cat("1. MedRV niveau vs RV niveau :\n")
+dm1 <- dm_test(forecasts$qlike_MedRV, forecasts$qlike_RV)
+cat("   DM =", dm1$DM, "  p-value =", dm1$p_value, "\n")
+if (dm1$p_value < 0.05) cat("   → MedRV niveau significativement meilleur\n\n") else cat("   → Pas de différence significative\n\n")
+
+cat("2. MedRV niveau vs MedRV log :\n")
+dm2 <- dm_test(forecasts$qlike_MedRV, forecasts$qlike_logMedRV)
+cat("   DM =", dm2$DM, "  p-value =", dm2$p_value, "\n")
+if (dm2$p_value < 0.05) cat("   → Différence significative\n\n") else cat("   → Pas de différence significative\n\n")
+
+cat("3. MedRV niveau vs MedRV sqrt :\n")
+dm3 <- dm_test(forecasts$qlike_MedRV, forecasts$qlike_sqrtMedRV)
+cat("   DM =", dm3$DM, "  p-value =", dm3$p_value, "\n")
+if (dm3$p_value < 0.05) cat("   → Différence significative\n\n") else cat("   → Pas de différence significative\n\n")
+
+cat("4. RV niveau vs RV log :\n")
+dm4 <- dm_test(forecasts$qlike_RV, forecasts$qlike_logRV)
+cat("   DM =", dm4$DM, "  p-value =", dm4$p_value, "\n")
+if (dm4$p_value < 0.05) cat("   → Différence significative\n\n") else cat("   → Pas de différence significative\n\n")
+```
+
+Interprétation : La transformation logarithmique améliore considérablement le R² (+10 points vs niveau). MedRV surperforme systématiquement RV. Le modèle HAR sur log(MedRV) explique 80.68% de la variance, ce qui est optimal pour l'ajustement in-sample.
+
+## Tests de Diebold-Mariano (QLIKE) :
+
+MedRV niveau vs RV niveau : DM = -33.76, p \< 0.001 → MedRV significativement meilleur ✓ MedRV niveau vs MedRV log : DM = -1.49, p = 0.136 → Pas de différence significative MedRV niveau vs MedRV sqrt : DM = -0.81, p = 0.420 → Pas de différence significative RV niveau vs RV log : DM = -1.47, p = 0.142 → Pas de différence significative
+
+### Synthèse et recommandations
+
+Résultat principal : Le modèle MedRV en niveau domine pour la prévision à 1 jour :
+
+Surperforme significativement RV (toutes transformations confondues) Les transformations (sqrt, log) ne dégradent pas significativement MedRV, mais n'apportent aucun gain prédictif
+
+### Paradoxe modélisation vs prévision :
+
+In-sample (R²) : log(MedRV) est optimal (80.68%) Out-of-sample (QLIKE) : MedRV niveau est optimal (-8.6468)
+
+Explication : La transformation logarithmique linéarise mieux la dynamique historique, mais lors de la reconversion (exponentiation), elle introduit un biais qui dégrade la précision des prévisions ponctuelles selon QLIKE. Pour des prévisions à court terme, la variance brute est plus performante.
+
+### Recommandation finale : 
+
+Pour prévoir la volatilité réalisée à 1 jour du KOSPI 200, utiliser le modèle HAR(1,5,22) sur MedRV en niveau. Ce modèle combine robustesse (médiane vs moyenne), simplicité (pas de transformation), et performance prédictive supérieure validée par le test de Diebold-Mariano.
