@@ -1,0 +1,1539 @@
+---
+title: "Mémoire Master 1"
+subtitle: "Jeter, donner, revendre, réparer ? Modélisation des choix de fin de vie des vêtements"
+author: "Patrice Kolié"
+---
+
+
+# 1. import de la base de donnée
+```{r}
+library(readxl)
+data <- read_excel("C:/Users/patri/OneDrive/Documents/test_chez_les_test/parfait_bdd.xlsx")
+
+```
+
+
+# 2. Traitement et conversion des variables en facteurs
+Nous convertissons les variables binaires et catégorielles en facteurs (factor) tout en spécifiant explicitement l'ordre des modalités afin de garantir la cohérence des futures estimations.
+
+```{r}
+
+data$sexe <- as.factor(data$sexe)
+
+data$csp <- factor(data$csp,
+                  levels = c("Étudiant sans activité rémunérée",
+                      "Étudiant en alternance / apprenti",
+                      "Étudiant salarié (hors stage et alternance)",
+                      "Stagiaire rémunéré",
+                      "Actif en emploi (salarié, fonctionnaire, etc.)",
+                      "Travailleur indépendant / auto-entrepreneur",
+                      "En recherche d’emploi",
+                      "Autre (au foyer, inactif)"))
+
+data$revenu_mensuel <- factor(data$revenu_mensuel,
+  levels = c("Moins de 300€",
+             "300€ à 600€",
+             "601€ à 900€", 
+             "901€ à 1 200€",
+             "1 201€ à 1 500 €",
+             "Plus de 1 500 €"))
+
+data$niveau_etude <- factor(data$niveau_etude, 
+        levels = c("Sans diplôme",
+                    "Bac ou équivalent",
+                    "Bac +2 (BTS, DUT, BUT 2, etc.)",
+                    "Licence (Licence, Bachelor)",
+                    "Master",
+                    "Doctorat",
+                    "Autre"))
+
+data$frequence_achat <-  factor(data$frequence_achat,
+            levels = c("Environ une fois par semaine",
+                       "Plusieurs fois par semaine",
+                       "Plusieurs fois par mois",
+                        "Environ une fois par mois",
+                        "Rarement (quelques fois par an)" ))
+
+data$lieu_achat <- factor(data$lieu_achat,
+                          levels = c("Magasins physiques",
+                          "Boutiques en ligne",
+                          "Friperies / Seconde main",
+                          "Marchés (marchés locaux, vendeurs indépendants)",
+                          "Autre"))
+
+data$budget_annuel_vetement <- factor(data$budget_annuel_vetement,
+            levels = c("Moins de 100 €",
+                       "100–250 €",
+                       "251–500 €",
+                       "501–1 000 €",
+                       "Plus de 1 000 €")) 
+
+data$raison_principal_achat <- factor(data$raison_principal_achat,
+                                      levels = c("Besoin réel (remplacer un vêtement usé ou abîmé)",
+                                      "Envie ou plaisir personnel",
+                                      "Promotion / bon prix",
+                                     "Suivre la mode / nouveauté",
+                                      "Autre"))
+  
+
+data$decision_fin_vie <-  as.factor(data$decision_fin_vie)
+
+data$type_vetement <- factor(data$type_vetement,
+            levels = c("T-shirt / Haut / Chemisier",
+                       "Pantalon / Jean",
+                       "Robe / Jupe",
+                       "Veste / Manteau",
+                       "Pull / Sweat",
+                       "Chaussures",
+                       "Autre"))
+
+data$prix_vetement <- factor(data$prix_vetement,
+            levels = c("Moins de 20 €",
+                       "20 à 50 €",
+                       "51 à 100 €",
+                       "Plus de 100 €"))
+
+data$raison_non_utilisation_vetement <- factor(data$raison_non_utilisation_vetement,
+            levels = c("Il était usé ou abîmé (trou, déchirure, tache, usure normale)",
+                       "Il ne m’allait plus",
+                       "Je m’en étais lassé",
+                       "Il était démodé",
+                       "Autre"))
+
+data$etat_vetement <- factor(data$etat_vetement,
+            levels = c("Très bon état (comme neuf, peu ou pas porté)",
+                       "Bon état (encore tout à fait portable)",
+                       "État moyen (signes d’usure mais encore portable)",
+                       "Mauvais état (troué, déchiré, taché, irréparable)"))
+
+data$frequence_avant_non_utilisation_vetement <- factor(data$frequence_avant_non_utilisation_vetement,
+            levels = c("Rarement (quelques fois par an)",
+                       "Parfois (quelques fois par mois)",
+                       "Souvent (plusieurs fois par semaine)",
+                       "Très souvent (presque tous les jours)"))
+
+data$seconde_main <- factor(data$seconde_main,
+            levels = c("Oui, souvent",
+                       "Oui, parfois",
+                       "Non, jamais"))
+
+data$pourquoi_non_seconde_main <-  factor(data$pourquoi_non_seconde_main, 
+                                          levels = c(  "Préférence pour les vêtements neufs",
+                                          "Manque de confiance en la qualité",
+                                          "Manque de disponibilité",
+                                          "Autre"))
+
+summary(data)
+```
+
+
+# 3. Filtrage de la population d'étude
+Nous restreignons l'échantillon aux répondants ayant effectivement déjà été confrontés à une décision de gestion de fin de vie d'un vêtement (decision_fin_vie == "Oui").
+
+```{r}
+library(tidyverse)
+library(dplyr)
+
+data <- data |> 
+  filter(decision_fin_vie == "Oui")
+```
+
+
+
+# 4. Nettoyage de la base et suppression des colonnes redondantes/inutiles
+Nous éliminons les variables intermédiaires ou inutiles pour la modélisation (items unitaires ayant servi au calcul des scores de construction, anciennes variables au format court et indicateurs non pertinents).
+
+```{r}
+data <- data |>
+  select(
+    -valeur_eco1:-Colonne6,
+    -connaissance_env1:-Colonne12,
+    -fast_fashion1:-Colonne16,
+    -Y,
+
+    -valeur_percue1,
+    -valeur_percu12,
+    -valeur_percue2,
+    -valeur_percu22,
+    -valeur_percue3,
+    -valeur_percu4,
+
+    -temps_jeter,
+    -temps_donner,
+    -temps_revendre,
+    -temps_réparer,
+
+    -coût_jeter,
+    -coût_donner,
+    -coût_revendre,
+    -coût_réparer,
+
+    -interet_economique_jeter,
+    -interet_economique_donner,
+    -interet_economique_revendre,
+    -interet_economique_réparer,
+
+    -distance_jeter,
+    -distance_donner,
+    -distance_revendre,
+    -distance_réparer,
+
+    -approbation_famille_jeter,
+    -approbation_famille_donner,
+    -approbation_famille_revendre,
+    -approbation_famille_réparer,
+
+    -opinion_jeter,
+    -opinion_donner,
+    -opinion_revendre,
+    -opinion_réparer,
+
+    -realisation_facile_jeter,
+    -realisation_facile_donner,
+    -realisation_facile_revendre,
+    -realisation_facile_réparer,
+
+    -atachement_vêtement1,
+    -attachement_vetement12,
+    -atachement_vêtement2,
+    -attachement_vetement22,
+    -atachement_vêtement3,
+    -attachement_vetement33,
+
+    -competence_reparation1,
+    -competence_reparation12,
+    -competence_reparation2,
+    -competence_reparation22,
+    -competence_reparation3,
+    -competence_reparation32,
+
+    -avis,
+
+  )
+```
+
+# affichage des noms des variables restantes
+```{r}
+names(data)
+```
+
+
+# 5. Traitement des valeurs manquantes (NA)
+Nous supprimons les variables présentant un taux de non-réponse critique mettant en péril la convergence du modèle (lieu_achat et pourquoi_non_seconde_main).
+
+```{r}
+data |> 
+  count(lieu_achat)
+
+data |> 
+  count(pourquoi_non_seconde_main)
+
+data <- data |>
+  select( - lieu_achat, -pourquoi_non_seconde_main, )
+```
+
+
+
+# Visualisation du profil des données manquantes
+Nous utilisons le package naniar pour analyser les combinaisons de valeurs manquantes restantes.
+
+qui permet de voir le nombre de valeurs manquantes par combinnaison lineaire
+```{r}
+# install.packages("naniar")
+# library(naniar)
+
+naniar::gg_miss_upset(data, nsets = 10) # nests = 0 pour afficher 10 variables  
+
+```
+
+L'analyse montre des omissions uniquement sur la variable age ainsi que sur la modalité "Ne sais pas" des variables de distance spécifiques aux alternatives. Nous procédons à une imputation par la moyenne pour l'âge, et par la valeur (5) pour les distances manquantes. Ces choix méthodologiques sont explicités dans le corps du mémoire.
+
+
+
+# age moyen
+```{r}
+library(dplyr)
+
+data <- data |> 
+  mutate(age = if_else(
+    is.na(age),               # Si l'âge est manquant (NA)
+    mean(age, na.rm = TRUE),  # Alors on le remplace par la moyenne (en ignorant les NA pour le calcul)
+    age                       # Sinon, on garde l'âge d'origine
+  ))
+
+```
+
+# distance = 5 pour la modalité "Ne sais pas"
+```{r}
+library(dplyr)
+
+data <- data |> 
+  mutate(across(
+    starts_with("distance."), # Cible toutes les colonnes de distance
+    ~ coalesce(.x, 5)         # Remplace le NA par 5 dans chacune d'elles
+  ))
+
+```
+
+
+# 6. Restructuration et regroupement des modalités à faibles effectifs
+
+Afin d'éviter le problème des cellules vides ou quasi-vides lors de l'estimation des modèles logit (qui causerait une instabilité des variances), nous filtrons et regroupons certaines modalités.
+
+
+
+# Variable Niveau d'études
+Nous écartons les modalités aux effectifs marginaux ("Doctorat", "Sans diplôme", "Autre") dans une nouvelle table de données baptisée data_clean.
+
+```{r}
+data_clean <- data |> 
+  # 1. On supprime la ligne de l'individu en Doctorat
+  filter(niveau_etude != "Doctorat") |> 
+  
+  # 2. On purge la mémoire pour supprimer "Sans diplôme", "Autre" et "Doctorat"
+  droplevels()
+
+summary(data_clean)
+```
+
+
+
+# variable CSP
+
+Compte tenu de la surreprésentation massive des étudiants au sein de notre échantillon d'enquête, nous faisons le choix méthodologique fort de restreindre notre champ d'étude exclusivement à la population étudiante. Les modalités associées aux actifs et demandeurs d'emploi sont donc supprimées. 
+
+```{r}
+library(dplyr)
+
+# On liste les modalités à éliminer
+modalites_a_supprimer <- c(
+  "Actif en emploi (salarié, fonctionnaire, etc.)",
+  "Travailleur indépendant / auto-entrepreneur",
+  "En recherche d’emploi",
+  "Autre (au foyer, inactif)"
+)
+
+# On applique le filtre sur la base de données
+data_clean <- data_clean |> 
+  filter(!csp %in% modalites_a_supprimer) |> 
+  droplevels() # Pour effacer les modalités de la mémoire de R
+
+summary(data_clean)
+```
+
+
+# Variable Sexe
+Un seul répondant ayant choisi la modalité "Ne souhaite pas se prononcer", nous retirons cette observation afin de stabiliser le codage binaire de la variable.
+
+
+```{r}
+library(dplyr)
+
+data_clean <- data_clean |> 
+  # On exclut l'individu qui ne souhaite pas se prononcer
+  filter(sexe != "Ne souhaite pas se prononcer") |> 
+  
+  # On supprime la modalité vide pour que R l'oublie
+  droplevels()
+
+summary(data_clean)
+```
+
+
+
+
+
+
+
+# Exclusion complète de l'alternative "Réparer"
+
+Aucun individu de notre échantillon final n'ayant sélectionné l'option "Réparer" comme comportement de fin de vie du vêtement, nous supprimons l'intégralité des attributs spécifiques associés à cette modalité absente, y compris d'autre colonnes qui ne servirons pas. La base de données finale pour la modélisation est nommée base_donne.
+
+
+
+```{r}
+# Extrait de code
+
+base_donne <- data_clean |>
+  select(
+   -raison_principal_achat,
+   -opion_fashion1,
+   -opion_fashion2,
+    -opion_fashion3,
+   -opion_fashion4,
+
+
+   -decision_fin_vie,
+
+
+    -frequence_Jeter,
+    -frequence_Donner,
+    -frequence_Revendre,
+    -frequence_Réparer,
+   
+   -temps.Réparer,
+   -cout.Réparer,
+     -interet_eco.Réparer,
+     -distance.Réparer,
+     -norme_subjective.Réparer,
+     -attitude.Réparer,
+   -controle_comportemental.Réparer
+   
+)
+```
+
+
+
+# Regroupements sur certaines variables (prix, #revenu, etat, budget)
+
+51 à 100 €       (12 obs)
+Plus de 100 €   (5 obs)
+
+j'ai décidé de regrouper ces 2 modalités
+
+```{r}
+library(forcats)
+
+base_donne <- base_donne |>
+  mutate(prix_vetement = fct_collapse(prix_vetement,
+    "Moins de 20€" = "Moins de 20 €",
+    "20 à 50€" = "20 à 50 €",
+    "Plus de 50€" = c("51 à 100 €", "Plus de 100 €")
+  ))
+
+```
+
+
+
+
+
+pour la variable revenu_mensuel ,j'ai décidé de regrouper ces 3 modalités
+
+901€ à 1 200€     (15 obs)
+1 201€ à 1 500 €  (8 obs)
+Plus de 1 500 €   (15 obs)
+
+```{r}
+base_donne <- base_donne |>
+  mutate(revenu_mensuel = fct_collapse(revenu_mensuel,
+    "Moins de 300€" = "Moins de 300€",
+    "300€ à 600€" = "300€ à 600€",
+    "601€ à 900€" = "601€ à 900€",
+    "Plus de 900€" = c("901€ à 1 200€", "1 201€ à 1 500 €", "Plus de 1 500 €")
+  ))
+
+```
+
+
+
+
+POur la variable etat_vetement , j'ai décider de regrouper ces 2 modalités
+
+État moyen (signes d’usure mais encore portable)     (23 obs)
+Mauvais état (troué, déchiré, taché, irréparable)    (10 obs)
+
+```{r}
+base_donne <- base_donne |>
+  mutate(etat_vetement = case_when(
+    etat_vetement == "Très bon état (comme neuf, peu ou pas porté)" ~ "Très bon état",
+    etat_vetement == "Bon état (encore tout à fait portable)" ~ "Bon état",
+    grepl("État moyen|Mauvais", etat_vetement) ~ "État moyen à mauvais"
+  )) |>
+  mutate(etat_vetement = factor(etat_vetement,
+                                levels = c("Très bon état", "Bon état", "État moyen à mauvais")))
+
+```
+
+
+POur la variable etat_vetement , j'ai décidé de regrouper ces 2 modalités
+
+4 501–1 000 €       (14 obs)
+5 Plus de 1 000 €   (6 obs)
+
+```{r}
+base_donne <- base_donne |>
+  mutate(budget_annuel_vetement = case_when(
+    grepl("Moins de 100", budget_annuel_vetement) ~ "Moins de 100€",
+    grepl("100", budget_annuel_vetement) ~ "100–250€",
+    grepl("251", budget_annuel_vetement) ~ "251–500€",
+    grepl("500|501|1000|Plus", budget_annuel_vetement) ~ "Plus de 500€"
+  )) |>
+  mutate(budget_annuel_vetement = factor(budget_annuel_vetement,
+                                         levels = c("Moins de 100€", "100–250€", "251–500€", "Plus de 500€")))
+
+```
+
+
+
+
+Le traitement des données se clôture ici. Notre échantillon d'analyse se compose de 147 observations nettoyées au sein de l'objet base_donne.
+
+
+
+
+
+
+# 7. Représentation graphique (Analyse Descriptive)
+Uniquement pour les variables quali qui seront presentes dans le modele ou pas 
+
+
+
+# variable de choix (Y)
+diagramme circulaire 
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+df_choix <- base_donne |> 
+  count(choix) |> 
+  mutate(
+    pct = round(n / sum(n) * 100, 1),
+    label = paste0(n, " (", pct, "%)"),
+    ymax = cumsum(n),
+    ymin = c(0, head(cumsum(n), -1)),
+    pos = (ymax + ymin) / 2
+  )
+
+couleurs_choix <- c(
+  "Jeter"    = "lightblue",
+  "Donner"   = "lightpink",
+  "Revendre" = "darkkhaki"
+)
+
+ggplot(df_choix, aes(ymax = ymax, ymin = ymin,
+                      xmax = 4, xmin = 0, fill = choix)) +
+  geom_rect() +
+  geom_label(aes(x = 3, y = pos, label = label),
+             size = 4, fill = "white", alpha = 0.85) +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = couleurs_choix) +
+  labs(title = "Choix", fill = "Choix") +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold", size = 10),
+    legend.text = element_text(size = 9),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 13,
+                              margin = margin(b = 10))
+  )
+```
+
+
+# sexe 
+```{r}
+base_donne |> 
+  count(sexe)
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# Préparation des données
+df_sexe <- base_donne |> 
+  count(sexe) |> 
+  mutate(
+    pct = round(n / sum(n) * 100, 1),
+    label = paste0(n, " (", pct, "%)")
+  )
+
+# Nouvelle palette (douce et contrastée)
+couleurs_sexe <- c(
+  "Femme" = "#FFB6A6",   # rose pastel
+  "Homme" = "#8EC5FC"    # bleu pastel
+)
+
+ggplot(df_sexe, aes(x = "", y = n, fill = sexe)) +
+  geom_col(width = 1, color = "white", linewidth = 0.8) +
+  coord_polar(theta = "y") +
+  
+  # Étiquettes au centre des parts
+  geom_label(aes(label = label),
+             position = position_stack(vjust = 0.5),
+             size = 4,
+             show.legend = FALSE,
+             fill = "white",
+             alpha = 0.85) +
+  
+  scale_fill_manual(values = couleurs_sexe) +
+  
+  labs(
+    title = "Sexe",
+    fill = "Sexe"
+  ) +
+  
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold", size = 10),
+    legend.text = element_text(size = 9),
+    plot.title = element_text(
+      hjust = 0.5, face = "bold", size = 13,
+      margin = margin(b = 10)
+    ),
+    plot.margin = margin(10, 10, 10, 10)
+  )
+
+```
+
+
+
+
+# csp
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+
+base_donne |> 
+  count(csp) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = reorder(csp, n), y = n, fill = csp)) +
+  geom_col(alpha = 0.9, width = 0.6) + 
+  coord_flip() +
+  
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)), 
+            hjust = -0.2,
+            fontface = "bold", 
+            size = 4) + 
+  
+  scale_fill_manual(values = c(
+    "Étudiant sans activité rémunérée" = "#E69F00",
+    "Étudiant en alternance / apprenti" = "#56B4E9",
+    "Étudiant salarié (hors stage et alternance)" = "#009E73",
+    "Stagiaire rémunéré" = "#CC79A7"
+  )) +
+  
+  scale_y_continuous(limits = c(0, 100)) +
+  
+  theme_classic() +
+  labs(title = "CSP") +
+  theme(legend.position = "none")
+
+```
+
+
+
+
+# revenu_mensuel
+```{r}
+base_donne |> 
+  count(revenu_mensuel)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+base_donne |> 
+  count(revenu_mensuel) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = revenu_mensuel, y = n, fill = revenu_mensuel)) +
+  geom_col(alpha = 0.9, width = 0.6) +
+  
+  # Ajout des pourcentages au-dessus des barres
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)), 
+            vjust = -0.5, fontface = "bold", size = 4) +
+  
+  scale_fill_manual(values = c(
+    "Moins de 300€" = "#D1E5F0",
+    "300€ à 600€"   = "#92C5DE",
+    "601€ à 900€"   = "#4393C3",
+    "Plus de 900€"  = "#2166AC"   # corrigé : pas d'espace
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "Revenu mensuel",
+    x = "Tranches de revenu",
+    y = "Effectif (n)"
+  ) +
+  theme(legend.position = "none")
+
+```
+
+
+
+# budget_annuel_vetement
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+df_budget <- base_donne |>
+  mutate(
+    # On enlève complètement les anciens levels
+    budget_annuel_vetement = as.character(budget_annuel_vetement),
+
+    # On recrée un facteur propre avec le bon ordre
+    budget_annuel_vetement = factor(
+      budget_annuel_vetement,
+      levels = c(
+        "Moins de 100€",
+        "100–250€",
+        "251–500€",
+        "Plus de 500€"
+      )
+    )
+  ) |>
+  count(budget_annuel_vetement) |>
+  mutate(
+    pourcentage = n / sum(n),
+    label = percent(pourcentage, accuracy = 0.1)
+  )
+
+ggplot(df_budget, aes(x = n,
+                      y = budget_annuel_vetement,
+                      fill = budget_annuel_vetement)) +
+  geom_col(alpha = 0.9, width = 0.6, color = "white", linewidth = 0.6) +
+  geom_text(aes(label = label),
+            hjust = -0.15,
+            fontface = "bold",
+            size = 4) +
+  scale_fill_manual(values = c(
+    "Moins de 100€" = "#DCEAF7",
+    "100–250€"      = "#A6CBE8",
+    "251–500€"      = "#5A9BD5",
+    "Plus de 500€"  = "#1F4E79"
+  )) +
+  scale_x_continuous(limits = c(0, max(df_budget$n) * 1.25)) +
+  theme_classic() +
+  labs(
+    title = "Budget annuel",
+    x = "Effectif (n)",
+    y = "Tranches de budget"
+  ) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold")
+  )
+
+```
+
+
+
+# niveau_etude
+```{r}
+base_donne |> 
+  count(niveau_etude)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+base_donne |> 
+  count(niveau_etude) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = niveau_etude, y = n, fill = niveau_etude)) +
+  geom_col(alpha = 0.9, width = 0.5) +
+  
+  # Ajout des pourcentages au-dessus des barres
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)), 
+            vjust = -0.5, fontface = "bold", size = 4) +
+  
+  # Couleurs manuelles à adapter
+  scale_fill_manual(values = c(
+    "Bac ou équivalent"                 = "#FDD49E",
+    "Bac +2 (BTS, DUT, BUT 2, etc.)"    = "#FDBB84",
+    "Licence (Licence, Bachelor)"       = "#FC8D59",
+    "Master"                            = "#D7301F"
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "Niveau d'études",
+    x = "Diplôme",
+    y = "Effectif (n)"
+  ) +
+  theme(legend.position = "none")
+```
+
+
+# Fréquence d'achat 
+```{r}
+base_donne |> 
+  count(frequence_achat)
+```
+
+```{r}
+base_donne |> 
+  count(frequence_achat) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = frequence_achat, y = n, fill = frequence_achat)) +
+  geom_col(alpha = 0.9, width = 0.6) +
+  
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)), 
+            vjust = -0.5, fontface = "bold", size = 4) +
+  
+  scale_fill_manual(values = c(
+    "Plusieurs fois par semaine"      = "#00441B",
+    "Environ une fois par semaine"    = "#2a924a",
+    "Plusieurs fois par mois"         = "#74c476",
+    "Environ une fois par mois"       = "#a1d99b",
+    "Rarement (quelques fois par an)" = "#c7e9c0"
+  )) +
+  
+  scale_x_discrete(labels = c(
+    "Plusieurs fois par semaine"      = "Plusieurs fois / semaine",
+    "Environ une fois par semaine"    = "1 fois / semaine",
+    "Plusieurs fois par mois"         = "Plusieurs fois / mois",
+    "Environ une fois par mois"       = "1 fois / mois",
+    "Rarement (quelques fois par an)" = "Rarement / an"
+  )) +
+  
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 25, hjust = 1)
+  ) +
+  labs(
+    title = "Fréquence d'achat",
+    x = "Fréquence",
+    y = "Effectif (n)"
+  )
+
+```
+
+# seconde main
+```{r}
+base_donne |> 
+  count(seconde_main)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+base_donne |> 
+  count(seconde_main) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = seconde_main, y = n, fill = seconde_main)) +
+  geom_col(alpha = 0.9, width = 0.5) +
+  
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)), 
+            vjust = -0.5, fontface = "bold", size = 4) +
+  
+  # Nouvelle palette : Dégradé Terracotta / Cuivré / Sable
+  scale_fill_manual(values = c(
+    "Oui, souvent" = "#B35806",  # Terracotta foncé
+    "Oui, parfois" = "#F1A340",  # Ocre / Cuivré léger
+    "Non, jamais"  = "#FEE0B6"   # Sable clair
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "Seconde main",
+    x = "Fréquence",
+    y = "Effectif (n)"
+  ) +
+  theme(legend.position = "none")
+```
+
+# Type de vêtement 
+```{r}
+base_donne |> 
+  count(type_vetement)
+```
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+df_type <- base_donne |> 
+  count(type_vetement) |> 
+  mutate(
+    pourcentage = n / sum(n),
+    label_pct = percent(pourcentage, accuracy = 0.1),
+    type_vetement = reorder(type_vetement, n)  # tri du plus acheté au moins acheté
+  )
+
+ggplot(df_type, aes(x = type_vetement, y = n, fill = type_vetement)) +
+  geom_col(alpha = 0.9, width = 0.6) +
+  
+  # Pourcentages au-dessus des barres
+  geom_text(aes(label = label_pct),
+            vjust = -0.4, fontface = "bold", size = 4) +
+  
+  # Palette Bleu Canard / Vert Émeraude
+  scale_fill_manual(values = c(
+    "T-shirt / Haut / Chemisier" = "#004D40",
+    "Pantalon / Jean"            = "#00695C",
+    "Robe / Jupe"                = "#00897B",
+    "Veste / Manteau"            = "#26A69A",
+    "Pull / Sweat"               = "#4DB6AC",
+    "Chaussures"                 = "#80CBC4",
+    "Autre"                      = "#B2DFDB"
+  )) +
+  
+  # Labels courts uniquement pour l'affichage (les données restent intactes)
+  scale_x_discrete(labels = c(
+    "T-shirt / Haut / Chemisier" = "Haut / Chemisier",
+    "Pantalon / Jean"            = "Pantalon / Jean",
+    "Robe / Jupe"                = "Robe / Jupe",
+    "Veste / Manteau"            = "Veste / Manteau",
+    "Pull / Sweat"               = "Pull / Sweat",
+    "Chaussures"                 = "Chaussures",
+    "Autre"                      = "Autre"
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "Type de vêtement",
+    x = NULL,
+    y = "Effectif (n)"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 25, hjust = 1, size = 10),
+    plot.title = element_text(face = "bold")
+  )
+
+```
+
+
+# Prix d'achat du vêtement
+```{r}
+base_donne |> 
+  count(prix_vetement)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+base_donne |> 
+  count(prix_vetement) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = prix_vetement, y = n, fill = prix_vetement)) +
+  geom_col(alpha = 0.9, width = 0.5) +
+  
+  # Ajout des pourcentages au-dessus des barres
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)), 
+            vjust = -0.5, fontface = "bold", size = 4) +
+  
+  # Palette corrigée : les noms doivent correspondre EXACTEMENT aux niveaux du facteur
+  scale_fill_manual(values = c(
+    "Moins de 20€" = "#67001F",
+    "20 à 50€"     = "#B2182B",
+    "Plus de 50€"  = "#D6604D"
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "Prix d'achat",
+    x = "Tranches de prix",
+    y = "Effectif (n)"
+  ) +
+  theme(legend.position = "none")
+
+```
+
+
+# raison_non_utilisation_vetement
+```{r}
+base_donne |> 
+  count(raison_non_utilisation_vetement)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+df_raison <- base_donne |> 
+  count(raison_non_utilisation_vetement) |> 
+  mutate(
+    pourcentage = n / sum(n),
+    label_pct = percent(pourcentage, accuracy = 0.1),
+    raison_non_utilisation_vetement = reorder(raison_non_utilisation_vetement, n)
+  )
+
+ggplot(df_raison, aes(x = raison_non_utilisation_vetement, y = n, fill = raison_non_utilisation_vetement)) +
+  geom_col(alpha = 0.9, width = 0.6) +
+  
+  geom_text(aes(label = label_pct),
+            vjust = -0.4, fontface = "bold", size = 4) +
+  
+  scale_fill_manual(values = c(
+    "Il ne m’allait plus" = "#2B5C8F",
+    "Je m’en étais lassé" = "#4682B4",
+    "Il était usé ou abîmé (trou, déchirure, tache, usure normale)" = "#6897BB",
+    "Il était démodé"      = "#A3C1AD",
+    "Autre"                = "#CBD5E1"
+  )) +
+  
+  # Labels raccourcis sur 2 lignes pour éviter le chevauchement
+  scale_x_discrete(labels = c(
+    "Il ne m’allait plus" = "Il ne m’allait\nplus",
+    "Je m’en étais lassé" = "Je m’en étais\nlassé",
+    "Il était usé ou abîmé (trou, déchirure, tache, usure normale)" = "Usé ou abîmé\n(trou, tache…)",
+    "Il était démodé" = "Il était\ndémodé",
+    "Autre" = "Autre"
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "Raison d'abandon",
+    x = NULL,
+    y = "Effectif (n)"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 20, hjust = 1, size = 9),
+    plot.title = element_text(face = "bold")
+  )
+
+```
+
+
+#  etat_vetement
+```{r}
+base_donne |> 
+  count(etat_vetement)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+base_donne |> 
+  count(etat_vetement) |> 
+  mutate(pourcentage = n / sum(n)) |> 
+  
+  ggplot(aes(x = etat_vetement, y = n, fill = etat_vetement)) +
+  geom_col(alpha = 0.9, width = 0.6) +
+  
+  geom_text(aes(label = percent(pourcentage, accuracy = 0.1)),
+            vjust = -0.5, fontface = "bold", size = 4) +
+  
+  scale_fill_manual(values = c(
+    "Très bon état"           = "#D95F02",  # foncé
+    "Bon état"                = "#F1A340",  # moyen
+    "État moyen à mauvais"    = "#FEE0B6"   # clair
+  )) +
+  
+  theme_classic() +
+  labs(
+    title = "État du vêtement",
+    x = "Catégorie d'état",
+    y = "Effectif (n)"
+  ) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold")
+  )
+
+```
+
+
+
+
+# frequence_avant_non_utilisation_vetement
+```{r}
+base_donne |> 
+  count(frequence_avant_non_utilisation_vetement)
+```
+
+
+```{r}
+library(ggplot2)
+
+df <- data.frame(
+  frequence = c("Rarement (quelques fois par an)",
+                "Parfois (quelques fois par mois)",
+                "Souvent (plusieurs fois par semaine)",
+                "Très souvent (presque tous les jours)"),
+  n = c(36, 63, 42, 6)
+)
+
+df$pct <- round(df$n / sum(df$n) * 100, 1)
+df$label <- paste0(df$n, " (", df$pct, "%)")
+df$frequence <- factor(df$frequence, levels = df$frequence)
+
+couleurs <- c("#A8D5E2", "#5B9BD5", "#2E6FAB", "#1A3A5C")
+
+ggplot(df, aes(x = "", y = n, fill = frequence)) +
+  geom_col(width = 1, color = "white", linewidth = 0.8) +
+  coord_polar(theta = "y") +
+  geom_label(aes(label = label),
+             position = position_stack(vjust = 0.5),
+             size = 3.5, show.legend = FALSE, fill = "white", alpha = 0.8) +
+  scale_fill_manual(values = couleurs) +
+  labs(title = "Fréquence d'usage avant arrêt d'utilisation",
+       fill = "Fréquence") +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold", size = 10),
+    legend.text = element_text(size = 9),
+    legend.key.size = unit(0.8, "cm"),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 13, margin = margin(b = 10)),
+    plot.margin = margin(10, 10, 10, 10)
+  ) +
+  guides(fill = guide_legend(ncol = 2))
+```
+
+
+
+
+Fin de la partie graphique 
+
+
+
+
+
+
+# Boxplot pour les quanti
+
+```{r}
+par(mfrow=c(2,2))
+boxplot(base_donne$age, xlab="age")
+boxplot(base_donne$valeur_eco_score,xlab="valeur_eco_score")
+boxplot(base_donne$connaissance_env_score, xlab="connaissance_env_score")
+boxplot(base_donne$fast_fashion_score, xlab="fast_fashion_score")
+
+
+par(mfrow=c(2,2))
+boxplot(base_donne$competence_reparation_score, xlab="competence_reparation_score")
+boxplot(base_donne$valeur_percue_score,xlab="valeur_percue_score")
+boxplot(base_donne$attachement_vetement_score, xlab="attachement_vetement_score")
+```
+
+# 8. Diagnostics statistiques avancés pour les variables quantitatives
+```{r}
+library(EnvStats)
+rosnerTest(base_donne$age, k = 15, alpha = 0.05)
+rosnerTest(base_donne$valeur_eco_score, k = 6, alpha = 0.05)
+rosnerTest(base_donne$fast_fashion_score, k = 6, alpha = 0.05)
+
+```
+
+
+# Coefficients et représentations graphiques des corrélations (Spearman)
+```{r}
+cor(base_donne[,c("age","valeur_eco_score","connaissance_env_score","fast_fashion_score", "competence_reparation_score", "valeur_percue_score", "attachement_vetement_score")],use="complete.obs",method = c("spearman"))
+
+
+library(PerformanceAnalytics)
+mydata <- base_donne[, c("age","valeur_eco_score","connaissance_env_score","fast_fashion_score", "competence_reparation_score", "valeur_percue_score", "attachement_vetement_score")]
+chart.Correlation(mydata, histogram=TRUE, pch=19,method = c("spearman"))
+```
+
+
+
+
+#  9. Analyse des Correspondances Multiples (ACM)
+Exploration des liaisons et proximités entre l'ensemble de nos variables qualitatives.
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+# Sélectionner que les variables qualitatives
+data_quali <- base_donne |> 
+  select(sexe, revenu_mensuel, niveau_etude, seconde_main, prix_vetement, etat_vetement, budget_annuel_vetement)
+
+# Faire l'ACM
+acm <- MCA(data_quali, 
+           graph = FALSE)  # FALSE pour ne pas avoir de graphique auto
+```
+
+
+```{r}
+# Résumé
+summary(acm)
+
+# Valeurs propres (inertie)
+acm$eig
+
+# Coordonnées des variables
+acm$var$coord
+
+# Contributions des variables
+acm$var$contrib
+```
+
+
+```{r}
+# Graphique des variables
+fviz_mca_var(acm, repel = TRUE)
+
+# Graphique des individus
+fviz_mca_ind(acm, repel = TRUE, alpha.ind = 0.7)
+
+# Biplot (variables + individus)
+fviz_mca(acm, repel = TRUE)
+
+# Avec des couleurs par variable
+fviz_mca_var(acm, col.var = "red", repel = TRUE)
+```
+
+
+Visualisation graphique des axes de l'ACM projetés selon le comportement final du répondant (choix).
+
+```{r}
+fviz_mca_ind(acm, col.ind = base_donne$choix, 
+             palette = c("Donner" = "#00AFBB", "Revendre" = "#E7B800", "Jeter" = "#FC4E07"),
+             addEllipses = TRUE, ellipse.type = "confidence",
+             repel = TRUE)
+
+```
+
+
+
+
+# 10. Modélisation économétrique : Préparation des données
+
+
+#Transformation d’un format wide en un format long
+
+```{r}
+library(mlogit)
+
+fin_vie<-mlogit.data(base_donne, shape="wide",varying=18:38,choice="choix")
+head(fin_vie,8)
+```
+
+
+
+# Définition des modalités de référence (Relevel)
+Nous fixons manuellement les modalités de référence des variables explicatives individuelles pour l'interprétation des coefficients futurs.
+
+```{r}
+base_donne$sexe <- relevel(factor(base_donne$sexe), ref = "Homme")
+base_donne$revenu_mensuel <- relevel(factor(base_donne$revenu_mensuel), ref = "601€ à 900€" )
+base_donne$seconde_main <- relevel(factor(base_donne$seconde_main), ref = "Oui, parfois" )
+base_donne$budget_annuel_vetement <- relevel(factor(base_donne$budget_annuel_vetement), ref = "Plus de 500€" )
+base_donne$etat_vetement <- relevel(factor(base_donne$etat_vetement), ref = "Bon état" )
+
+```
+
+
+je demande a R de respecter l'ordre des modalités, mais attention ce sont juste des facteurs(de facon nominale)
+```{r}
+base_donne$sexe <- as.factor(base_donne$sexe)
+
+base_donne$csp <- factor(base_donne$csp,
+                  levels = c("Étudiant sans activité rémunérée",
+                      "Étudiant en alternance / apprenti",
+                      "Étudiant salarié (hors stage et alternance)",
+                      "Stagiaire rémunéré"))
+
+base_donne$revenu_mensuel <- factor(base_donne$revenu_mensuel,
+  levels = c("Moins de 300€",
+             "300€ à 600€",
+             "601€ à 900€", 
+             "Plus de 900€"
+             ))
+
+base_donne$niveau_etude <- factor(base_donne$niveau_etude, 
+        levels = c( "Bac ou équivalent",
+                    "Bac +2 (BTS, DUT, BUT 2, etc.)",
+                    "Licence (Licence, Bachelor)",
+                    "Master"))
+
+
+base_donne$budget_annuel_vetement <- factor(base_donne$budget_annuel_vetement,
+            levels = c("Moins de 100€",
+                       "100–250€",
+                       "251–500€",
+                       "Plus de 500€")) 
+  
+
+
+
+base_donne$prix_vetement <- factor(base_donne$prix_vetement,
+            levels = c("Moins de 20€",
+                       "20 à 50€",
+                       "Plus de 50€"))
+
+
+
+
+base_donne$etat_vetement <- factor(base_donne$etat_vetement,
+            levels = c("État moyen à mauvais",
+                       "Bon état",
+                       "Très bon état"))
+
+
+
+base_donne$seconde_main <- factor(base_donne$seconde_main,
+            levels = c("Oui, souvent",
+                       "Oui, parfois",
+                       "Non, jamais"))
+
+summary(base_donne)
+```
+
+
+
+# Modele logit simple
+```{r}
+fin_vie_simple<-mlogit(choix ~ 0|age + sexe + revenu_mensuel +niveau_etude + valeur_eco_score + connaissance_env_score + fast_fashion_score + competence_reparation_score + seconde_main + budget_annuel_vetement+ prix_vetement + etat_vetement + valeur_percue_score + attachement_vetement_score,reflevel="Jeter",data=fin_vie)
+
+summary(fin_vie_simple) 
+```
+
+
+Log-Likelihood: -95.421
+McFadden R^2:  0.33745 
+Likelihood ratio test : chisq = 97.198 (p.value = 1.58e-05)
+
+
+vous aurez exactement les mêmes valeurs que moi, c'est juste les modalité de ref qui changent. 
+
+
+
+
+# modele conditionnel
+```{r}
+fin_vie_conditionnel<-mlogit(choix ~ temps + cout + interet_eco + distance + norme_subjective + attitude + controle_comportemental|0,data=fin_vie)
+
+summary(fin_vie_conditionnel) 
+```
+
+Log-Likelihood: -98.191
+
+
+# Calcul de la qualité du modèle : R2_Mc_Fadden
+```{r}
+fin_vie_conditionnel0<-mlogit(choix~1,data=fin_vie)
+R2_Mc_Fadden<-1-(logLik(fin_vie_conditionnel)/logLik(fin_vie_conditionnel0))
+R2_Mc_Fadden
+
+summary(fin_vie_conditionnel0)
+```
+
+Log-Likelihood: -144.02
+McFadden R^2:  0 
+Likelihood ratio test : chisq = 0 (p.value = 1)
+
+
+```{r}
+library(lmtest)
+lrtest(fin_vie_conditionnel0,fin_vie_conditionnel)
+```
+
+
+Model 1: choix ~ 1
+Model 2: choix ~ temps + cout + interet_eco + distance + norme_subjective + 
+    attitude + controle_comportemental | 0
+  #Df   LogLik Df  Chisq Pr(>Chisq)    
+1   2 -144.020                         
+2   7  -98.191  5 91.658  < 2.2e-16 ***
+
+
+
+vous aurez exactement les mêmes valeurs que moi, dans le même ordre sans difference. 
+
+
+
+# general
+
+```{r}
+fin_vie_general <-mlogit(choix ~ temps + cout + interet_eco + distance + norme_subjective + attitude + controle_comportemental|age + sexe + revenu_mensuel +niveau_etude + valeur_eco_score + connaissance_env_score + fast_fashion_score + competence_reparation_score + seconde_main + budget_annuel_vetement+ prix_vetement + etat_vetement + valeur_percue_score + attachement_vetement_score,reflevel="Jeter",data=fin_vie)
+
+summary(fin_vie_general) 
+```
+
+Log-Likelihood: -48.299
+McFadden R^2:  0.66464 
+Likelihood ratio test : chisq = 191.44 (p.value = < 2.22e-16)
+
+
+vous aurez exactement les mêmes valeurs que moi, c'est juste les modalité de ref qui changent. 
+
+
+Au regard de tous les 3 resultats de nos differents modèle (simple , conditionnel et general) , le meilleur general est clairement le meilleur, c'est lui qui offre de meilleur résultat. 
+
+On garde donc ce modèle general pour la suite de nos analyse
+
+
+# prise en compte de l'heteroscedasticité
+```{r}
+fin_vie_general_hetero<-mlogit(choix ~ temps + cout + interet_eco + distance + norme_subjective + attitude + controle_comportemental|age + sexe + revenu_mensuel +niveau_etude + valeur_eco_score + connaissance_env_score + fast_fashion_score + competence_reparation_score + seconde_main + budget_annuel_vetement+ prix_vetement + etat_vetement + valeur_percue_score + attachement_vetement_score,reflevel="Jeter", heterosc = TRUE, data=fin_vie)
+summary(fin_vie_general_hetero)
+```
+aucune variable n'est significative pour le modèle heteroscedastique . j'ai comme l'impression que le système a buggé 
+
+# lr test
+entre modèle entre le modele fin_vie_general et  fin_vie_general_hetero
+```{r}
+lrtest(fin_vie_general,fin_vie_general_hetero)
+
+```
+étant donné que les coeff du modèle heteroscedastique sont clairement inexploitable , ce résultat du lrtest est donc biaisé. Car il nous dit que le meilleur modèle serait le modèle hetero (FAUX). Nous ne tiendrons pas compte de ce résultat et continuerons a travailler avec le modèle général .
+
+
+
+
+c'est la fin des modeles (simple, multinational , général et heteroscedastique)
+
+desormais on verifie l'htpothese IIA pour pouvoir mettre en place le Nested 
+
+
+# lrtest
+
+```{r}
+library(lmtest)
+library(mlogit)
+
+# Modèle logit multinomial général (non emboîté)
+ml_general <- mlogit(choix ~ temps + cout + interet_eco + distance + norme_subjective 
+                    + attitude + controle_comportemental|age + sexe + revenu_mensuel 
+                    +niveau_etude + valeur_eco_score + connaissance_env_score + fast_fashion_score 
+                    + competence_reparation_score + seconde_main + budget_annuel_vetement+ prix_vetement 
+                    + etat_vetement + valeur_percue_score + attachement_vetement_score,
+                    reflevel="Jeter", data=fin_vie)
+summary(ml_general)
+
+
+# Modèle logit emboîté : jeter seul vs {donner, revendre}
+ml_nested <- mlogit(choix ~ temps + cout + interet_eco + distance + norme_subjective 
+                    + attitude + controle_comportemental|age + sexe + revenu_mensuel 
+                    +niveau_etude + valeur_eco_score + connaissance_env_score + fast_fashion_score 
+                    + competence_reparation_score + seconde_main + budget_annuel_vetement+ prix_vetement 
+                    + etat_vetement + valeur_percue_score + attachement_vetement_score,
+                    reflevel="Jeter", data=fin_vie,
+                    
+                    nests = list(lineaire = "Jeter",
+                                 circulaire = c("Donner", "Revendre")),
+                    unscaled = TRUE)
+
+
+
+# lr test 
+lrtest(ml_nested)
+```
+
+
+  #Df  LogLik Df  Chisq Pr(>Chisq)    
+1  57 -33.186                         
+2  55 -48.299 -2 30.226  2.732e-07 ***
+
+
+Si la p-value est inférieure à 0,05 (ou 0,1), l’hypothèse IIA est refusée. c'est dans le cas chez nous
+
+# scorestest 
+```{r}
+
+# Modèle logit emboîté : jeter seul vs {donner, revendre}
+ml_nested <- mlogit(choix ~ temps + cout + interet_eco + distance + norme_subjective 
+                    + attitude + controle_comportemental|age + sexe + revenu_mensuel 
+                    +niveau_etude + valeur_eco_score + connaissance_env_score + fast_fashion_score 
+                    + competence_reparation_score + seconde_main + budget_annuel_vetement+ prix_vetement 
+                    + etat_vetement + valeur_percue_score + attachement_vetement_score,
+                    reflevel="Jeter", data=fin_vie)
+
+scoretest(ml_nested, nests = list(lineaire = "Jeter", circulaire = c("Donner", "Revendre")),unscaled = TRUE)
+
+```
+score test
+
+data:  lineaire, circulaire
+chisq = 57.341, df = 2, p-value = 3.536e-13
+alternative hypothesis: nested model
+
+l'hypothese IIA est une fois deplus réfusée
+
+
+
+#odds-ratio 
+```{r}
+exp(coef(fin_vie_general)) 
+```
+
+
+
+
+
+
+# effet marginaux 
+```{r}
+moy <- with(fin_vie, data.frame(
+    temps = tapply(temps, index(fin_vie)$alt, mean),
+    cout = tapply(cout, index(fin_vie)$alt, mean),
+    interet_eco = tapply(interet_eco, index(fin_vie)$alt, mean),
+    distance = tapply(distance, index(fin_vie)$alt, mean),
+    norme_subjective = tapply(norme_subjective, index(fin_vie)$alt, mean),
+    attitude = tapply(attitude, index(fin_vie)$alt, mean),
+    controle_comportemental = tapply(controle_comportemental, index(fin_vie)$alt, mean),
+    age = mean(age),
+    sexe = names(which.max(table(sexe))),
+    revenu_mensuel = names(which.max(table(revenu_mensuel))),
+    niveau_etude = names(which.max(table(niveau_etude))),
+    seconde_main = names(which.max(table(seconde_main))),
+    budget_annuel_vetement = names(which.max(table(budget_annuel_vetement))),
+    prix_vetement = names(which.max(table(prix_vetement))),
+    etat_vetement = names(which.max(table(etat_vetement))),
+    valeur_eco_score = mean(valeur_eco_score),
+    connaissance_env_score = mean(connaissance_env_score),
+    fast_fashion_score = mean(fast_fashion_score),
+    competence_reparation_score = mean(competence_reparation_score),
+    valeur_percue_score = mean(valeur_percue_score),
+    attachement_vetement_score = mean(attachement_vetement_score)
+))
+```
+
+
+```{r}
+# Effets marginaux à la moyenne
+# effects(fin_vie_general, covariate = "interet_eco", data = moy)
+# effects(fin_vie_general, covariate = "distance", data = moy)
+# effects(fin_vie_general, covariate = "norme_subjective", data = moy)
+# effects(fin_vie_general, covariate = "attitude", data = moy)
+# effects(fin_vie_general, covariate = "controle_comportemental", data = moy)
+# effects(fin_vie_general, covariate = "age", data = moy)
+# effects(fin_vie_general, covariate = "connaissance_env_score", data = moy)
+# effects(fin_vie_general, covariate = "valeur_percue_score", data = moy)
+# effects(fin_vie_general, covariate = "attachement_vetement_score", data = moy)
+
+
+
+# etant donné que ça ne marche pas avec dtat=moy , j'ai donc décidé de rétirer cette partie " , data = moy " , c'est faire sans la moyenne)
+
+
+effects(fin_vie_general, covariate = "interet_eco")
+effects(fin_vie_general, covariate = "distance")
+effects(fin_vie_general, covariate = "norme_subjective")
+effects(fin_vie_general, covariate = "attitude")
+effects(fin_vie_general, covariate = "controle_comportemental")
+effects(fin_vie_general, covariate = "age")
+effects(fin_vie_general, covariate = "connaissance_env_score")
+effects(fin_vie_general, covariate = "valeur_percue_score")
+effects(fin_vie_general, covariate = "attachement_vetement_score")
+
+```
+
+
+# Stata 
+exporter la base donnée au format long sur stata
+
+```{r}
+write.table(fin_vie, "fin_vie.txt",row.names=TRUE, sep="\t")
+
+```

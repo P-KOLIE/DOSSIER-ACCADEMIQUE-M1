@@ -1,0 +1,882 @@
+---
+title: "Projet"
+format: html
+editor: visual
+---
+
+
+# Importation de la base d'indice de production du gaz et électricité de 2003 à 2022
+```{r}
+library(forecast)
+library(readxl)
+library(tsoutliers)
+library(psych)
+library(tidyverse)
+library(TSA)
+library(seastests)
+library(RJDemetra)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(zoo) 
+library(smooth)
+library(purrr)
+```
+
+```{r}
+base <- read_excel("IPG2211A2N (1).xlsx", 
+    sheet = "Monthly")
+```
+# Analyse exploratoire
+
+## Présentation de la série 
+```{r}
+xx <- ts(data = base[,2], start=c(2003,01),frequency=12)
+plot(xx, main ="Gaz et Electricité de 2003 à 2022 ")
+```
+```{r}
+
+# Distribution, ACF et PACF
+ggtsdisplay(xx, plot.type="histogram")
+
+# Effets saisonniers
+ggseasonplot(xx, col=rainbow(12), year.labels=TRUE)
+```
+
+## Détection des poins atypiques
+```{r}
+fit <- tso(xx)
+plot(fit) 
+show(fit)
+```
+4 points atypiques dont un TC et 3 AO.
+
+```{r}
+xx_c <- fit$yadj
+plot(xx_c)
+#write(t(xx_c),file="adjusted-outlier-serie.out",ncolumn=1,append=FALSE)
+```
+
+
+##Statistique descriptive
+```{r}
+describe(xx_c)
+```
+
+
+Les points atypiques détectés sont significatifs (|t-stat| > 3), ce qui justifie leur correction.
+```{r}
+boxplot(xx_c, main="Boxplot de la série corrigée", ylab="IPG", col="darkblue")
+```
+
+
+## Détection de la saisonnalité
+```{r}
+dxx_c <- diff(xx_c, differences = 1)
+```
+
+```{r}
+# Correlogramme
+par(mfrow=c(1,2))
+acf(xx_c, main="Série en niveau")
+acf(dxx_c, main="Série différenciée")
+```
+On voit bien de la saisonnalité (des pics très fort et très bas, 12)
+
+
+```{r}
+## Periodogramme
+par(mfrow=c(1,2))
+periodogram(xx_c, main="la série en niveau")
+periodogram(dxx_c, main="la série en différence première")
+
+```
+
+### Test de saisonnalité
+```{r}
+# Seasonal dummies
+sd <- seasdum(xx_c)
+show(sd)
+```
+p-vale =0 on rejette l'hypothèse  d'absence de saisonnalité
+
+```{r}
+# Webel-Ollech test - new version of seastests (2021-09)
+wot <- combined_test(xx_c)
+show(wot)
+```
+même résultat
+
+
+
+
+## La désaisonnalisation et décomposition avec X13 SARIMA SEATS
+
+### Choix du modèle (additif ou multiplicatif)
+```{r}
+#Log level
+
+myregx13 <- regarima_x13(xx_c, spec ="RG5c")
+summary(myregx13)
+s_transform(myregx13) 
+plot(myregx13)
+```
+
+```{r}
+#seasonnal adjustement
+myspec <- x13_spec("RSA5c")
+mysax13 <- x13(xx_c, myspec)
+#summary(mysax13$regarima)
+#mysax13
+#par(mfrow=c(1,2))
+plot(mysax13$final)
+```
+la composante saisonnière corrigée suit un peu la tendance.
+
+
+y = regression model + arima (2, 0, 0, 0, 1, 1) et on retient un modèle en log car transformation log en oui.
+
+
+- autre approche avec TRAMO
+
+```{r}
+# TRAMO-SEATS pour la désaisonnalisation
+myspec <- tramoseats_spec("RSAfull")
+mysats <- tramoseats(xx_c, myspec)
+plot(mysats$final)
+
+```
+
+
+
+# Prévision de la série saisonnière
+## Estimation et prévision.
+
+### Naive, X13-SARIMA-SEATS, STL et STS
+
+#### Les méthodes naives
+
+```{r}
+prevsnaive <- snaive(xx_c,h=12)
+prevsnaive
+plot(snaive(xx_c,h=12))
+```
+
+#### X13 SARIMA-SEATS
+```{r}
+#X13-arima-seats
+library(RJDemetra)
+myregx13 <- regarima_x13(xx_c, spec ="RG5c")
+summary (myregx13)
+# Forecast of the original series (fcst) and it's standard error (fcsterr) for 2 years
+prevx13 <- myregx13$forecast
+prevx13 <- prevx13[, "fcst"]
+
+# Only forecasts for 2 years
+forex13 <- matrix(myregx13$forecast[1:12])
+(forex13)
+```
+Nous rappelons que c'est un modèle arima (2,0,1)(0,1,1) qui a une transformation log.
+aic :1090
+
+```{r}
+summary(myregx13)
+```
+
+```{r}
+AIC_x13  <- 1090
+AICc_x13 <-1090
+```
+
+#### STL
+```{r}
+fitstl <- stlm(xx_c)
+fitstl$model
+```
+On a un ETS(A,N,N) modèle avec erreur additive pas de tendance ni saisonnalité.
+aic: 1738
+
+```{r}
+#décomposition
+xstl <- ts(data = xx_c[1:240,1],frequency=12)
+decomp <- stl(xstl, s.window="periodic")
+#plot(decomp)
+
+##prévision avec sl
+fitstl = stlm(xstl)
+prevstl <- forecast(fitstl,12)
+show(prevstl)
+plot(prevstl)
+```
+```{r}
+AIC_stl <- AIC(fitstl$model)
+
+n_stl <- length(xx_c)
+k_stl <- length(coef(fitstl$model))
+
+AICc_stl <- AIC_stl + (2 * k_stl * (k_stl + 1)) / (n_stl - k_stl - 1)
+```
+
+#### STS
+
+```{r}
+# dévcomposition
+fitsts <- StructTS(xx_c)
+#plot(cbind(fitted(fitsts), residuals(fitsts)))
+#summary(fitsts)
+show(fitsts)
+#prévision
+prevsts<-forecast(fitsts, 12)
+show(prevsts)
+plot(prevsts)
+```
+On a ajusté un modèle BSM avec level, slope, seas, et epsilonLa variance de la série en niveau est élévée, donc change de niveau, cependant la pente est constante avec une saisonnalité significative et pas de bruit blanc.
+
+```{r}
+loglik_sts <- fitsts$loglik
+k_sts <- length(fitsts$coef)
+
+AIC_sts <- -2 * loglik_sts + 2 * k_sts
+n <- length(xx_c)
+k <- length(fitsts$coef)
+
+AICc_sts <- AIC_sts + (2*k*(k+1))/(n-k-1)
+```
+
+### Holt, ETS, TBATS,ADAM ETS et ADAM ETS SARIMA
+#### Méthode Holt Winters
+
+```{r}
+m <- HoltWinters(xx_c,seasonal="mul")
+m
+show(m)
+plot(m)
+plot(m$fitted[,1])
+```
+```{r}
+prevhw <- forecast(m, h = 12)
+plot(prevhw)
+```
+
+
+#### ETS
+```{r}
+library(forecast)
+fitets <- ets(xx_c)
+fitets
+plot(fitets)
+```
+Nous avons un modèle avec tendace damped, à composante saisonière multiplicative et à erreur multiplicative.
+aic: 1790
+```{r}
+prevets <- forecast(fitets,12)
+plot(prevets)
+```
+
+
+#### TBATS
+```{r}
+fittbats <- tbats(xx_c)
+fittbats
+plot(fittbats)
+```
+
+aic:1772
+```{r}
+prevtbats <- forecast(fittbats,12)
+plot(prevtbats)
+```
+pas de transformation box cox, trend dont le phi est 0.8
+
+#### ADAM ETS
+
+```{r}
+# ADAM ETS
+fitadam1 <- auto.adam(xx_c, model="ZZZ", lags=c(1,12), select=TRUE)
+show(fitadam1)
+plot(fitadam1)
+```
+On retient ce modèle:ETS(MNM)+SARIMA(1,0,0)[1](2,0,0)[12]
+modèle sans tendance mais erreur et saisonnalité multiple + un sarima
+aic:1096
+#### ADAM ETS SARIMA
+```{r}
+fitadam2 <- auto.adam(xx_c, model="ZZZ", lags=c(1,1,12), orders=list(ar=c(3,3), i=(2), ma=c(3,3), select=TRUE))
+show(fitadam2)
+plot(fitadam2)
+```
+aic 1400
+### SARIMA ET SSARIMA
+#### ARIMA
+```{r}
+# SARIMA model
+fitsarima <- auto.arima(xx_c, seasonal = TRUE)
+fitsarima
+prevsarima <- forecast(fitsarima, h = 12)
+
+prevsarima
+plot(prevsarima)
+```
+
+aic: 1090
+
+
+####SSARIMA
+```{r}
+# SSARIMA model
+fitssarima <- auto.ssarima(xx_c, lags=c(1,12), orders=list(ar=c(3,3), i=(2), ma=c(3,3), select=TRUE))
+fitssarima
+prevssarima <- forecast(fitssarima, h=12, level = 0.90)
+prevssarima
+plot(prevssarima)
+```
+aic: 1420
+
+
+#### Résumé sous forme de tableau (mieux à faire avec excel)
+en terme d'ajustement les modèles issus de SARIMA et x13- ARIMA SEAT l'emporte
+```{r}
+
+
+#-----------------------------
+# 1. Fonction utilitaire
+#-----------------------------
+to_param_df <- function(model_name, params) {
+data.frame(
+Parametre = names(params),
+Valeur = as.character(params),
+Modele = model_name,
+stringsAsFactors = FALSE
+)
+}
+
+#-----------------------------
+# 2. X13
+#-----------------------------
+extract_x13 <- function(myregx13, AIC_x13 = NA, AICc_x13 = NA) {
+  s <- capture.output(summary(myregx13))
+  
+  # Si les coeffs ne sont pas facilement extractibles de l'objet,
+  # on les récupère depuis le résumé texte.
+  params <- c(
+    transformation = if (any(grepl("Log-transformation: yes", s))) "log" else "level",
+    AIC = AIC_x13,
+    AICc = AICc_x13
+  )
+  
+  # Tentative d'extraction automatique via le texte
+  get_coef <- function(pattern, label) {
+    line <- s[grepl(pattern, s)]
+    if (length(line) == 0) return(NULL)
+    val <- sub("^.*?(-?[0-9]+\\.?[0-9]*).*$", "\\1", trimws(line[1]))
+    setNames(val, label)
+  }
+  
+  coefs <- c(
+    get_coef("^Phi\\(1\\)", "ar1"),
+    get_coef("^Phi\\(2\\)", "ar2"),
+    get_coef("^Phi\\(3\\)", "ar3"),
+    get_coef("^Theta\\(1\\)", "ma1"),
+    get_coef("^Theta\\(2\\)", "ma2"),
+    get_coef("^Theta\\(3\\)", "ma3"),
+    get_coef("^BPhi\\(1\\)|^SPhi\\(1\\)", "sar1"),
+    get_coef("^BPhi\\(2\\)|^SPhi\\(2\\)", "sar2"),
+    get_coef("^BTheta\\(1\\)|^STheta\\(1\\)", "sma1"),
+    get_coef("^BTheta\\(2\\)|^STheta\\(2\\)", "sma2")
+  )
+  
+  params <- c(coefs, params)
+  to_param_df("X13", params)
+}
+
+#-----------------------------
+# 3. STL + ETS
+#-----------------------------
+extract_stl_ets <- function(fitstl) {
+  m <- fitstl$model
+  
+  params <- c()
+  
+  # paramètre alpha/beta/gamma/phi si présents
+  if (!is.null(m$par)) {
+    params <- c(params, m$par)
+  }
+  
+  # type ETS
+  ets_type <- tryCatch(m$method, error = function(e) NA)
+  if (is.null(ets_type)) ets_type <- NA
+  
+  # AIC / AICc / BIC si présents
+  if (!is.null(m$aic))  params <- c(params, AIC = m$aic)
+  if (!is.null(m$aicc)) params <- c(params, AICc = m$aicc)
+  if (!is.null(m$bic))  params <- c(params, BIC = m$bic)
+  
+  params <- c(params, modele = ets_type)
+  to_param_df("STL", params)
+}
+
+#-----------------------------
+# 4. STS
+#-----------------------------
+extract_sts <- function(fitsts, n_obs) {
+  params <- fitsts$coef
+  
+  # AIC manuel
+  k <- length(fitsts$coef)
+  AIC_sts <- -2 * fitsts$loglik + 2 * k
+  AICc_sts <- AIC_sts + (2 * k * (k + 1)) / (n_obs - k - 1)
+  
+  params <- c(params, AIC = AIC_sts, AICc = AICc_sts)
+  to_param_df("STS", params)
+}
+
+#-----------------------------
+# 5. Naive / SNaive
+#-----------------------------
+extract_snaive <- function() {
+params <- c(modele = "Saisonnier lag 12")
+to_param_df("SNaive", params)
+}
+
+
+#-----------------------------
+# 6. Construction du tableau
+#-----------------------------
+tab_long <- bind_rows(
+  extract_snaive(),
+  extract_x13(myregx13, AIC_x13 = 1090, AICc_x13 = 1090),
+  extract_stl_ets(fitstl),
+  extract_sts(fitsts, n_obs = length(xx_c))
+)
+
+tableau_final <- tab_long %>%
+  distinct(Modele, Parametre, .keep_all = TRUE) %>%
+  pivot_wider(names_from = Modele, values_from = Valeur)
+
+tableau_final
+```
+
+
+### Courbes de prévision
+```{r}
+# Prévisions des différents modèles sous forme ts
+
+fc_snaive <- ts(prevsnaive$mean, start = c(2022,1), frequency = 12)
+fc_stl    <- ts(prevstl$mean, start = c(2022,1), frequency = 12)
+fc_sts    <- ts(prevsts$mean, start = c(2022,1), frequency = 12)
+fc_hw     <- ts(prevhw$mean, start = c(2022,1), frequency = 12)
+fc_ets    <- ts(prevets$mean, start = c(2022,1), frequency = 12)
+fc_tbats  <- ts(prevtbats$mean, start = c(2022,1), frequency = 12)
+fc_arima  <- ts(prevsarima$mean, start = c(2022,1), frequency = 12)
+fc_ssarima <- ts(prevssarima$mean, start = c(2022,1), frequency = 12)
+
+fc_adam_ets <- ts(forecast(fitadam1, h = 12)$mean, start = c(2022,1), frequency = 12)
+
+fc_adam_ets_arima <- ts(  forecast(fitadam2, h = 12)$mean,  start = c(2022,1),  frequency = 12)
+
+x13_fc <- ts(  myregx13$forecast[1:12],  start = c(2022,1),  frequency = 12)
+
+
+```
+
+
+```{r}
+
+```
+
+```{r}
+
+
+# 1. Extraire les dates correctement
+# time(window(...)) récupère les index temporels, as.yearmon les convertit
+dates_prev <- as.Date(as.yearmon(time(fc_snaive)))
+
+# 2. Création du data frame
+df_plot <- data.frame(
+  Date = dates_prev,
+  Observee = as.numeric(window(xx_c, start = c(2022,1), end = c(2022, 12))),
+  SNaive = as.numeric(fc_snaive),
+  STL = as.numeric(fc_stl),
+  STS = as.numeric(fc_sts),
+  Holt_Winters = as.numeric(fc_hw),
+  ETS = as.numeric(fc_ets),
+  TBATS = as.numeric(fc_tbats),
+  SARIMA = as.numeric(fc_arima),
+  SSARIMA = as.numeric(fc_ssarima),
+  ADAM_ETS = as.numeric(fc_adam_ets),
+  ADAM_ETS_ARIMA = as.numeric(fc_adam_ets_arima),
+  X13 = as.numeric(x13_fc)
+)
+
+# 3. Passage au format long
+df_long <- df_plot %>%
+  pivot_longer(cols = -Date, names_to = "Modele", values_to = "Valeur")
+
+# 4. Palette de couleurs vives
+# Palette corrigée pour éviter la confusion
+couleurs_vives <- c(
+  "Observee" = "black",          # Noir - SEULE ligne noire
+  "SNaive" = "#E41A1C",          # Rouge
+  "STL" = "#377EB8",             # Bleu
+  "STS" = "#4DAF4A",             # Vert
+  "Holt_Winters" = "#984EA3",    # Violet
+  "ETS" = "#FF7F00",             # Orange vif
+  "TBATS" = "#A65628",           # Brun
+  "SARIMA" = "#F781BF",          # Rose
+  "SSARIMA" = "#00CED1",         # Turquoise
+  "ADAM_ETS" = "#D9D933",        # Jaune
+  "ADAM_ETS_ARIMA" = "#00FF00",  # VERT FLUO (pour bien la distinguer)
+  "X13" = "#8B0000"              # Bordeaux
+)
+
+# 5. Graphique final
+ggplot(df_long, aes(x = Date, y = Valeur, color = Modele)) +
+  geom_line(aes(size = (Modele == "Observee"))) +
+  scale_size_manual(values = c("TRUE" = 1.2, "FALSE" = 0.7), guide = "none") +
+  scale_color_manual(values = couleurs_vives) +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 months") +
+  theme_minimal() +
+  labs(
+    title = "Comparaison des prévisions (2022)",
+    subtitle = "Série : Industrial Production: Electric and Gas Utilities",
+    x = "Mois", y = "Indice", color = "Méthodes"
+  ) +
+  theme(legend.position = "right")
+```
+
+
+Tous les modèles capturent les tendances générales, pas trop clair, mieux faire quelque pour mieux voir.
+
+```{r}
+# 2. Création du data frame
+df_plot <- data.frame(
+  Date = dates_prev,
+  Observee = as.numeric(window(xx_c, start = c(2022,1), end = c(2022, 12))),
+  SNaive = as.numeric(fc_snaive),
+
+  Holt_Winters = as.numeric(fc_hw),
+  ETS = as.numeric(fc_ets),
+  
+  SARIMA = as.numeric(fc_arima),
+  SSARIMA = as.numeric(fc_ssarima),
+  ADAM_ETS = as.numeric(fc_adam_ets),
+  ADAM_ETS_ARIMA = as.numeric(fc_adam_ets_arima)
+)
+
+# 3. Passage au format long
+df_long <- df_plot %>%
+  pivot_longer(cols = -Date, names_to = "Modele", values_to = "Valeur")
+
+
+# 5. Graphique final
+ggplot(df_long, aes(x = Date, y = Valeur, color = Modele)) +
+  geom_line(aes(size = (Modele == "Observee"))) +
+  scale_size_manual(values = c("TRUE" = 1.2, "FALSE" = 0.7), guide = "none") +
+  scale_color_manual(values = couleurs_vives) +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "2 months") +
+  theme_minimal() +
+  labs(
+    title = "Comparaison des prévisions (2022)",
+    subtitle = "Série : Industrial Production: Electric and Gas Utilities",
+    x = "Mois", y = "Indice", color = "Méthodes"
+  ) +
+  theme(legend.position = "right")
+```
+
+
+### Qualité de prévision
+
+#### Séparation en train test
+```{r}
+train <- window(xx_c, end = c(2021,12))
+test  <- window(xx_c, start = c(2022,1))
+```
+
+```{r}
+h <- length(test)
+
+# 1. SNaive
+fit_snaive <- snaive(train, h = h)
+fc_snaive  <- fit_snaive
+
+# 2. STL
+fit_stl <- stlm(train, s.window = "periodic", method = "ets")
+fc_stl  <- forecast(fit_stl, h = h)
+
+# 3. STS
+fit_sts <- StructTS(train)
+fc_sts  <- forecast(fit_sts, h = h)
+
+# 4. Holt-Winters
+fit_hw <- HoltWinters(train)
+fc_hw  <- forecast(fit_hw, h = h)
+
+# 5. ETS
+fit_ets <- ets(train)
+fc_ets  <- forecast(fit_ets, h = h)
+
+# 6. TBATS
+fit_tbats <- tbats(train)
+fc_tbats  <- forecast(fit_tbats, h = h)
+
+# 7. SARIMA
+fit_sarima <- auto.arima(train, seasonal = TRUE)
+fc_sarima  <- forecast(fit_sarima, h = h)
+
+# 8. SSARIMA
+fit_ssarima <- auto.ssarima(
+  train,
+  lags = c(1, 12),
+  orders = list(ar = c(3,3), i = 2, ma = c(3,3), select = TRUE)
+)
+fc_ssarima <- forecast(fit_ssarima, h = h)
+
+# 9. ADAM ETS
+fit_adam_ets <- auto.adam(train, model="ZZZ", lags=c(1,12), select=TRUE)
+fc_adam_ets  <- forecast(fit_adam_ets, h = h)
+
+# 10. ADAM ETS+ARIMA
+fit_adam_ets_arima <- auto.adam(train, model="ZZZ", lags=c(1,1,12), orders=list(ar=c(3,3), i=(2), ma=c(3,3), select=TRUE))
+fc_adam_ets_arima  <- forecast(fit_adam_ets_arima, h = h)
+
+# 11. 
+```
+
+```{r}
+# Estimation sur train
+fit_x13 <- regarima_x13(train, spec = "RG5c")
+
+# Prévisions
+fc_x13 <- fit_x13$forecast[1:h]
+
+# Transformer en ts aligné sur test
+fc_x13 <- ts(fc_x13, start = start(test), frequency = frequency(test))
+```
+
+```{r}
+calc_errors <- function(real, pred) {
+  e <- real - pred
+  
+  mse <- mean(e^2, na.rm = TRUE)
+  medse <- median(e^2, na.rm = TRUE)
+  
+  return(c(MSE = mse, MedSE = medse))
+}
+```
+
+#### Benchmark naif
+```{r}
+fc_snaive_bench <- snaive(train, h = h)
+err_snaive_bench <- calc_errors(test, fc_snaive_bench$mean)
+mse_snaive_bench <- err_snaive_bench["MSE"]
+```
+
+#### calculs des erreurs
+```{r}
+# erreurs
+err_arima <- calc_errors(test, fc_sarima$mean)
+err_ets   <- calc_errors(test, fc_ets$mean)
+err_hw    <- calc_errors(test, fc_hw$mean)
+err_sts   <- calc_errors(test, fc_sts$mean)
+err_tbats <- calc_errors(test, fc_tbats$mean)
+
+# R2 OOS
+R2_arima <- 1 - err_arima["MSE"] / err_snaive_bench["MSE"]
+R2_ets   <- 1 - err_ets["MSE"]   / err_snaive_bench["MSE"]
+R2_hw    <- 1 - err_hw["MSE"]    / err_snaive_bench["MSE"]
+R2_sts   <- 1 - err_sts["MSE"]   / err_snaive_bench["MSE"]
+R2_tbats <- 1 - err_tbats["MSE"] / err_snaive_bench["MSE"]
+```
+
+
+#### R² OUT-OF-SAMPLE
+
+```{r}
+results <- data.frame(
+  Modele = character(),
+  MSE = numeric(),
+  MedSE = numeric(),
+  R2OOS = numeric()
+)
+
+ajout_resultat <- function(nom, pred) {
+  err <- calc_errors(test, pred)
+  data.frame(
+    Modele = nom,
+    MSE = err["MSE"],
+    MedSE = err["MedSE"],
+    R2OOS = 1 - err["MSE"] / mse_snaive_bench
+  )
+}
+
+results <- rbind(
+  results,
+  ajout_resultat("STL", fc_stl$mean),
+  ajout_resultat("STS", fc_sts$mean),
+  ajout_resultat("Holt-Winters", fc_hw$mean),
+  ajout_resultat("ETS", fc_ets$mean),
+  ajout_resultat("TBATS", fc_tbats$mean),
+  ajout_resultat("SARIMA", fc_sarima$mean),
+  ajout_resultat("SSARIMA", fc_ssarima$mean),
+  ajout_resultat("X13", fc_x13),
+  ajout_resultat("ADAM ETS", fc_adam_ets$mean),
+  ajout_resultat("ADAM ETS+ARIMA", fc_adam_ets_arima$mean),
+  data.frame(
+    Modele = "Benchmark SNaive",
+    MSE = mse_snaive_bench,
+    MedSE = err_snaive_bench["MedSE"],
+    R2OOS = 0
+  )
+)
+
+results <- results[order(results$MSE), ]
+results
+```
+ETS a le plus petit MSE et Holt le plus petit MedSE et  le R2OOS positif traduisant que tous les modèles sont mieux que le naif.
+
+```{r}
+
+```
+
+
+#### CSPE
+
+```{r}
+# observations réelles
+obs <- as.numeric(test)
+
+# dates du test
+dates <- seq(as.Date("2022-01-01"), by = "month", length.out = length(test))
+
+# tableau des prévisions
+df_forecasts <- data.frame(
+  Date = dates,
+  SNaive = as.numeric(fc_snaive$mean),
+  STL = as.numeric(fc_stl$mean),
+  STS = as.numeric(fc_sts$mean),
+  `Holt-Winters` = as.numeric(fc_hw$mean),
+  ETS = as.numeric(fc_ets$mean),
+  TBATS = as.numeric(fc_tbats$mean),
+  SARIMA = as.numeric(fc_sarima$mean),
+  SSARIMA = as.numeric(fc_ssarima$mean),
+  `ADAM ETS` = as.numeric(fc_adam_ets$mean),
+  `ADAM ETS+ARIMA` = as.numeric(fc_adam_ets_arima$mean),
+  X13 = as.numeric(fc_x13),
+  Realisee = obs
+)
+
+# prévisions seules
+previsions <- df_forecasts |> select(-Date, -Realisee)
+
+# CSPE brut pour chaque modèle
+cspe_df <- map_dfc(previsions, ~ cumsum((obs - .x)^2)) |>
+  mutate(Date = dates) |>
+  pivot_longer(-Date, names_to = "Modele", values_to = "CSPE")
+
+# graphique
+ggplot(cspe_df, aes(x = Date, y = CSPE, color = Modele)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Erreur quadratique cumulative (CSPE) par modèle",
+    x = NULL,
+    y = "CSPE"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+On garde ETS
+```{r}
+
+# tableau des prévisions
+df_forecasts <- data.frame(
+  Date = dates,
+  `Holt-Winters` = as.numeric(fc_hw$mean),
+  SSARIMA = as.numeric(fc_ssarima$mean),
+  `ADAM ETS` = as.numeric(fc_adam_ets$mean),
+  `ADAM ETS+ARIMA` = as.numeric(fc_adam_ets_arima$mean),
+  X13 = as.numeric(fc_x13),
+  Realisee = obs
+)
+
+# prévisions seules
+previsions <- df_forecasts |> select(-Date, -Realisee)
+
+# CSPE brut pour chaque modèle
+cspe_df <- map_dfc(previsions, ~ cumsum((obs - .x)^2)) |>
+  mutate(Date = dates) |>
+  pivot_longer(-Date, names_to = "Modele", values_to = "CSPE")
+
+# graphique
+ggplot(cspe_df, aes(x = Date, y = CSPE, color = Modele)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Erreur quadratique cumulative (CSPE) par modèle",
+    x = NULL,
+    y = "CSPE"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+###Diebold Mariano en comparant à AR(1)
+
+```{r}
+# modèle AR(1)
+fit_ar1 <- Arima(train, order = c(1,0,0))
+fc_ar1  <- forecast(fit_ar1, h = h)
+```
+
+```{r}
+
+dm_test_model <- function(real, pred_model, pred_ar1) {
+  dm.test(
+    e1 = real - pred_model,
+    e2 = real - pred_ar1,
+    alternative = "less",   # ton modèle meilleur
+    h = 1,
+    power = 2
+  )
+}
+```
+
+
+```{r}
+dm_results <- list()
+
+dm_results$ETS <- dm_test_model(test, fc_ets$mean, fc_ar1$mean)
+dm_results$HW  <- dm_test_model(test, fc_hw$mean, fc_ar1$mean)
+dm_results$STS <- dm_test_model(test, fc_sts$mean, fc_ar1$mean)
+dm_results$TBATS <- dm_test_model(test, fc_tbats$mean, fc_ar1$mean)
+dm_results$SARIMA <- dm_test_model(test, fc_sarima$mean, fc_ar1$mean)
+dm_results$SSARIMA <- dm_test_model(test, fc_ssarima$mean, fc_ar1$mean)
+dm_results$STL <- dm_test_model(test, fc_stl$mean, fc_ar1$mean)
+dm_results$SNaive <- dm_test_model(test, fc_snaive$mean, fc_ar1$mean)
+dm_results$X13 <- dm_test_model(test, fc_x13, fc_ar1$mean)
+dm_results$ADAM_ETS <- dm_test_model(test, fc_adam_ets$mean, fc_ar1$mean)
+dm_results$ADAM_ETS_ARIMA <- dm_test_model(test, fc_adam_ets_arima$mean, fc_ar1$mean)
+```
+
+
+
+```{r}
+# Création du tableau final avec conclusion
+dm_table_final <- data.frame(
+  Modele = names(dm_results),
+  Statistique_DM = sapply(dm_results, function(x) round(x$statistic, 3)),
+  p_value = sapply(dm_results, function(x) round(x$p.value, 4))
+)
+
+# Affichage
+print(dm_table_final)
+```
+
+
+Tous les modèles sont mieux que AR(1)
