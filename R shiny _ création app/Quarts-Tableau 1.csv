@@ -1,0 +1,9 @@
+Phase;Aller / Retour;Date;Heure (heure française);Equipe 1;Pays equipe 1;Equipe 2;Pays equipe 2;Résultat (ex: 1-1 (3-2 TAB));Gagnant
+Quart;Aller;;;1er gagnant des 8e;;2e gagnant des 8e;;;
+Quart;Retour;;;2e gagnant des 8e;;1er gagnant des 8e;;;
+Quart;Aller;;;3e gagnant des 8e;;4e gagnant des 8e;;;
+Quart;Retour;;;4e gagnant des 8e;;3e gagnant des 8e;;;
+Quart;Aller;;;5e gagnant des 8e;;6e gagnant des 8e;;;
+Quart;Retour;;;6e gagnant des 8e;;5e gagnant des 8e;;;
+Quart;Aller;;;7e gagnant des 8e;;8e gagnant des 8e;;;
+Quart;Retour;;;8e gagnant des 8e;;7e gagnant des 8e;;;

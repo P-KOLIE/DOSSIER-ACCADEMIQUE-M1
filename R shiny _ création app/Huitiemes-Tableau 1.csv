@@ -1,0 +1,17 @@
+Phase;Aller / Retour;Date;Heure (heure française);Equipe 1;Pays equipe 1;Equipe 2;Pays equipe 2;Résultat (ex: 1-1 (3-2 TAB));Gagnant
+Huitième;Aller;;;Arsenal;Angleterre;Vainqueur Barrage (Atalanta Bergame / Olympiakos) OU Vainqueur Barrage (Bayer Leverkusen / Borussia Dortmund);Italie / Grèce OU Allemagne / Allemagne;;
+Huitième;Retour;;;Vainqueur Barrage (Atalanta Bergame / Olympiakos) OU Vainqueur Barrage (Bayer Leverkusen / Borussia Dortmund);Italie / Grèce OU Allemagne / Allemagne;Arsenal;Angleterre;;
+Huitième;Aller;;;Bayern Munich;Allemagne;Vainqueur Barrage (Atalanta Bergame / Olympiakos) OU Vainqueur Barrage (Bayer Leverkusen / Borussia Dortmund);Italie / Grèce OU Allemagne / Allemagne;;
+Huitième;Retour;;;Vainqueur Barrage (Atalanta Bergame / Olympiakos) OU Vainqueur Barrage (Bayer Leverkusen / Borussia Dortmund);Italie / Grèce OU Allemagne / Allemagne;Bayern Munich;Allemagne;;
+Huitième;Aller;;;Liverpool;Angleterre;Vainqueur Barrage (Juventus Turin / Galatasaray) OU Vainqueur Barrage (Atlético de Madrid / Club Bruges);Italie / Turquie OU Espagne / Belgique;;
+Huitième;Retour;;;Vainqueur Barrage (Juventus Turin / Galatasaray) OU Vainqueur Barrage (Atlético de Madrid / Club Bruges);Italie / Turquie OU Espagne / Belgique;Liverpool;Angleterre;;
+Huitième;Aller;;;Tottenham;Angleterre;Vainqueur Barrage (Juventus Turin / Galatasaray) OU Vainqueur Barrage (Atlético de Madrid / Club Bruges);Italie / Turquie OU Espagne / Belgique;;
+Huitième;Retour;;;Vainqueur Barrage (Juventus Turin / Galatasaray) OU Vainqueur Barrage (Atlético de Madrid / Club Bruges);Italie / Turquie OU Espagne / Belgique;Tottenham;Angleterre;;
+Huitième;Aller;;;FC Barcelone;Espagne;Vainqueur Barrage (Paris-SG / Karabagh FC) OU Vainqueur Barrage (Newcastle / Monaco);France / Azerbaïdjan OU Angleterre / France;;
+Huitième;Retour;;;Vainqueur Barrage (Paris-SG / Karabagh FC) OU Vainqueur Barrage (Newcastle / Monaco);France / Azerbaïdjan OU Angleterre / France;FC Barcelone;Espagne;;
+Huitième;Aller;;;Chelsea;Angleterre;Vainqueur Barrage (Paris-SG / Karabagh FC) OU Vainqueur Barrage (Newcastle / Monaco);France / Azerbaïdjan OU Angleterre / France;;
+Huitième;Retour;;;Vainqueur Barrage (Paris-SG / Karabagh FC) OU Vainqueur Barrage (Newcastle / Monaco);France / Azerbaïdjan OU Angleterre / France;Chelsea;Angleterre;;
+Huitième;Aller;;;Sporting Portugal;Portugal;Vainqueur Barrage (Real Madrid / Benfica) OU Vainqueur Barrage (Inter Milan / Bodö/Glimt);Espagne / Portugal OU Italie / Norvège;;
+Huitième;Retour;;;Vainqueur Barrage (Real Madrid / Benfica) OU Vainqueur Barrage (Inter Milan / Bodö/Glimt);Espagne / Portugal OU Italie / Norvège;Sporting Portugal;Portugal;;
+Huitième;Aller;;;Manchester City;Angleterre;Vainqueur Barrage (Real Madrid / Benfica) OU Vainqueur Barrage (Inter Milan / Bodö/Glimt);Espagne / Portugal OU Italie / Norvège;;
+Huitième;Retour;;;Vainqueur Barrage (Real Madrid / Benfica) OU Vainqueur Barrage (Inter Milan / Bodö/Glimt);Espagne / Portugal OU Italie / Norvège;Manchester City;Angleterre;;

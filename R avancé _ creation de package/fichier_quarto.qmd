@@ -1,0 +1,98 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+
+```{r}
+filtre_quali <- function(iris, Species){
+  
+  function(modalite){
+    
+    data[data[[var_quali]] == modalite, ]
+  }
+  
+```
+
+```{r}
+ir
+```
+
+```{r}
+filtre_species <- function(data, Species){
+
+  data[data$Species == Species, ]
+}
+```
+
+```{r}
+filtre_species(iris, "setosa")
+```
+
+```{r}
+plot_quanti_quanti <- function(data, x, y){
+  
+  ggplot(data, aes(x = .data[[x]], y = .data[[y]])) +
+    geom_point() +
+    geom_smooth(method = "lm", se = FALSE, color="red") +
+    labs(
+      x = x,
+      y = y,
+      title = paste("Relation entre", x, "et", y)
+    )
+}
+```
+
+```{r}
+plot_quanti_quanti(iris, "Sepal.Length", "Sepal.Width")
+```
+
+
+
+
+```{r}
+stats_var <- function(data, variable){
+  
+  x <- as.numeric(data[[variable]])
+  
+  data.frame(
+    variable = names(data)[variable],
+    moyenne = mean(x, na.rm = TRUE),
+    mediane = median(x, na.rm = TRUE),
+    ecart_type = sd(x, na.rm = TRUE),
+    min = min(x, na.rm = TRUE),
+    max = max(x, na.rm = TRUE)
+  )
+}
+
+
+```
+
+```{r}
+stats_var(iris, 1)
+
+```
+
+
+```{r}
+filtre_species <- function(data, species_name) {
+  subset(data, Species == species_name)
+}
+```
+
+
+```{r}
+filtre_species(iris, "setosa")
+```
+
+
+data("iris")
+
+
+```{r}
+library(examenPatrice)
+# Teste une de tes fonctions pour être sûr
+stats_var(iris, 1)
+```
+

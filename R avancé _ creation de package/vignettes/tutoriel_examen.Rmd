@@ -1,0 +1,63 @@
+---
+title: "tutoriel_examen"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{tutoriel_examen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(examenPatrice)
+data("iris")
+```
+
+## Introduction
+
+Ce package permet d'analyser le dataset iris avec 3 fonctions principales :
+
+- `stats_var()` : statistiques descriptives
+- `plot_quanti_quanti()` : graphique de relation entre 2 variables
+- `filtre_species()` : filtrer par espèce
+
+## Statistiques descriptives
+
+Calculer les statistiques pour la longueur des sépales :
+
+```{r stats}
+stats_var(iris, 1)  # Colonne 1 = Sepal.Length
+```
+
+## Relation entre variables
+
+Visualiser la relation entre longueur et largeur des pétales :
+
+```{r plot, fig.width=6, fig.height=4}
+plot_quanti_quanti(iris, "Petal.Length", "Petal.Width")
+```
+
+## Filtrer par espèce
+
+Extraire uniquement les fleurs setosa :
+
+```{r filtre}
+setosa <- filtre_species(iris, "setosa")
+head(setosa)
+```
+
+Puis analyser :
+
+```{r analyse}
+stats_var(setosa, 3)  # Colonne 3 = Petal.Length
+```
+
+## Conclusion
+
+Ces fonctions permettent une analyse rapide du dataset iris.
